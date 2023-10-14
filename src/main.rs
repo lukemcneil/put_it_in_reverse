@@ -22,23 +22,30 @@ fn main() {
             FrameTimeDiagnosticsPlugin::default(),
             WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::Escape)),
         ))
-        .add_systems(Startup, (setup_graphics, setup_physics))
+        .add_systems(Startup, setup_physics)
         .add_systems(Update, (keyboard_input, cast_ray))
         .run();
 }
 
-fn setup_graphics(mut commands: Commands) {
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-10.0, 10.0, 30.0)
-            .looking_at(Vec3::new(0.0, 10.0, 0.0), Vec3::Y),
-        ..Default::default()
-    });
+enum TireLocation {
+    Front,
+    Back,
 }
 
 #[derive(Component)]
 struct Car;
+#[derive(Component)]
+struct Tire {
+    location: TireLocation,
+}
 
 pub fn setup_physics(mut commands: Commands) {
+    commands.spawn(Camera3dBundle {
+        transform: Transform::from_xyz(-30.0, 10.0, 0.0)
+            .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
+        ..Default::default()
+    });
+
     /*
      * Ground
      */
@@ -53,25 +60,96 @@ pub fn setup_physics(mut commands: Commands) {
     /*
      * Create the car
      */
-    commands.spawn((
-        TransformBundle::from(Transform::from_xyz(0., 10., 0.)),
-        RigidBody::Dynamic,
-        Collider::cuboid(3., 1., 1.),
-        Car,
-        ExternalForce::default(),
-    ));
+    let car_transform = Transform::from_xyz(0., 10., 0.);
+    let car_body = commands
+        .spawn((
+            TransformBundle::from(car_transform),
+            RigidBody::Dynamic,
+            Collider::cuboid(3., 1., 1.),
+            Car,
+            Velocity::default(),
+            ExternalForce::default(),
+            Name::from("Car"),
+            Friction::coefficient(0.0),
+        ))
+        .id();
+
+    let fr_tire = commands
+        .spawn((
+            TransformBundle::from(Transform::from_xyz(3., -1., 1.)),
+            Tire {
+                location: TireLocation::Front,
+            },
+            Name::from("Tire Front Right"),
+        ))
+        .id();
+
+    let fl_tire = commands
+        .spawn((
+            TransformBundle::from(Transform::from_xyz(3., -1., -1.)),
+            Tire {
+                location: TireLocation::Front,
+            },
+            Name::from("Tire Front Left"),
+        ))
+        .id();
+
+    let br_tire = commands
+        .spawn((
+            TransformBundle::from(Transform::from_xyz(-3., -1., 1.)),
+            Tire {
+                location: TireLocation::Back,
+            },
+            Name::from("Tire Back Right"),
+        ))
+        .id();
+
+    let bl_tire = commands
+        .spawn((
+            TransformBundle::from(Transform::from_xyz(-3., -1., -1.)),
+            Tire {
+                location: TireLocation::Back,
+            },
+            Name::from("Tire Back Left"),
+        ))
+        .id();
+
+    commands
+        .entity(car_body)
+        .push_children(&[fr_tire, fl_tire, br_tire, bl_tire]);
 }
 
 fn keyboard_input(
     keys: Res<Input<KeyCode>>,
-    mut car: Query<(&mut ExternalForce, &Transform), With<Car>>,
+    mut car: Query<(&mut ExternalForce, &Transform, &Velocity), With<Car>>,
+    tires: Query<(&GlobalTransform, &Tire), With<Tire>>,
 ) {
-    let (mut external_force, transform) = car.single_mut();
+    let (mut external_force, car_transform, _velocity) = car.single_mut();
 
+    let mut final_force = ExternalForce::default();
+    let wheel_force = car_transform.rotation.mul_vec3(Vec3::new(1000.0, 0.0, 0.0));
     if keys.pressed(KeyCode::W) {
-        external_force.force = transform.rotation.mul_vec3(Vec3::new(1000.0, 0.0, 0.0));
+        for (tire_transform, tire) in &tires {
+            if tire_transform.translation().y < 0.3 {
+                match tire.location {
+                    TireLocation::Front => {
+                        let singular_wheel_force = ExternalForce::at_point(
+                            wheel_force,
+                            tire_transform.translation(),
+                            car_transform.translation,
+                        );
+                        final_force += singular_wheel_force;
+                    }
+                    TireLocation::Back => (),
+                }
+            }
+        }
+        external_force.force = final_force.force;
+        external_force.torque = final_force.torque;
     } else if keys.pressed(KeyCode::S) {
-        external_force.force = transform.rotation.mul_vec3(Vec3::new(-1000.0, 0.0, 0.0));
+        external_force.force = car_transform
+            .rotation
+            .mul_vec3(Vec3::new(-1000.0, 0.0, 0.0));
     } else {
         external_force.force = Vec3::ZERO;
     }
