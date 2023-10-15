@@ -24,99 +24,84 @@ fn main() {
         ))
         .add_systems(Startup, setup_physics)
         .add_systems(Update, (keyboard_input, cast_ray))
+        .register_type::<Car>()
+        .register_type::<Tire>()
         .run();
 }
 
-enum TireLocation {
-    Front,
-    Back,
-}
-
-#[derive(Component)]
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
 struct Car;
-#[derive(Component)]
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
 struct Tire {
-    location: TireLocation,
+    connected_to_engine: bool,
 }
 
 pub fn setup_physics(mut commands: Commands) {
+    // camera
     commands.spawn(Camera3dBundle {
         transform: Transform::from_xyz(-30.0, 10.0, 0.0)
             .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
-        ..Default::default()
+        ..default()
     });
 
-    /*
-     * Ground
-     */
+    // ground
     let ground_size = 200.1;
     let ground_height = 0.1;
 
     commands.spawn((
         TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
         Collider::cuboid(ground_size, ground_height, ground_size),
+        Friction::coefficient(0.7),
+        Name::from("Floor"),
     ));
 
-    /*
-     * Create the car
-     */
-    let car_transform = Transform::from_xyz(0., 10., 0.);
-    let car_body = commands
+    // car and tires
+    commands
         .spawn((
-            TransformBundle::from(car_transform),
+            TransformBundle::from(Transform::from_xyz(0., 10., 0.)),
             RigidBody::Dynamic,
             Collider::cuboid(3., 1., 1.),
             Car,
             Velocity::default(),
             ExternalForce::default(),
             Name::from("Car"),
-            Friction::coefficient(0.0),
+            Friction::coefficient(0.7),
         ))
-        .id();
+        .with_children(|child_builder| {
+            child_builder.spawn((
+                TransformBundle::from(Transform::from_xyz(3., -1., 1.)),
+                Tire {
+                    connected_to_engine: true,
+                },
+                Name::from("Tire Front Right"),
+            ));
 
-    let fr_tire = commands
-        .spawn((
-            TransformBundle::from(Transform::from_xyz(3., -1., 1.)),
-            Tire {
-                location: TireLocation::Front,
-            },
-            Name::from("Tire Front Right"),
-        ))
-        .id();
+            child_builder.spawn((
+                TransformBundle::from(Transform::from_xyz(3., -1., -1.)),
+                Tire {
+                    connected_to_engine: true,
+                },
+                Name::from("Tire Front Left"),
+            ));
 
-    let fl_tire = commands
-        .spawn((
-            TransformBundle::from(Transform::from_xyz(3., -1., -1.)),
-            Tire {
-                location: TireLocation::Front,
-            },
-            Name::from("Tire Front Left"),
-        ))
-        .id();
+            child_builder.spawn((
+                TransformBundle::from(Transform::from_xyz(-3., -1., 1.)),
+                Tire {
+                    connected_to_engine: true,
+                },
+                Name::from("Tire Back Right"),
+            ));
 
-    let br_tire = commands
-        .spawn((
-            TransformBundle::from(Transform::from_xyz(-3., -1., 1.)),
-            Tire {
-                location: TireLocation::Back,
-            },
-            Name::from("Tire Back Right"),
-        ))
-        .id();
-
-    let bl_tire = commands
-        .spawn((
-            TransformBundle::from(Transform::from_xyz(-3., -1., -1.)),
-            Tire {
-                location: TireLocation::Back,
-            },
-            Name::from("Tire Back Left"),
-        ))
-        .id();
-
-    commands
-        .entity(car_body)
-        .push_children(&[fr_tire, fl_tire, br_tire, bl_tire]);
+            child_builder.spawn((
+                TransformBundle::from(Transform::from_xyz(-3., -1., -1.)),
+                Tire {
+                    connected_to_engine: true,
+                },
+                Name::from("Tire Back Left"),
+            ));
+        });
 }
 
 fn keyboard_input(
@@ -125,42 +110,36 @@ fn keyboard_input(
     tires: Query<(&GlobalTransform, &Tire), With<Tire>>,
 ) {
     let (mut external_force, car_transform, _velocity) = car.single_mut();
-
+    // we need to calculate one final linear force and angular torque to apply to the car
     let mut final_force = ExternalForce::default();
-    let wheel_force = car_transform.rotation.mul_vec3(Vec3::new(1000.0, 0.0, 0.0));
-    if keys.pressed(KeyCode::W) {
-        for (tire_transform, tire) in &tires {
-            if tire_transform.translation().y < 0.3 {
-                match tire.location {
-                    TireLocation::Front => {
-                        let singular_wheel_force = ExternalForce::at_point(
-                            wheel_force,
-                            tire_transform.translation(),
-                            car_transform.translation,
-                        );
-                        final_force += singular_wheel_force;
-                    }
-                    TireLocation::Back => (),
-                }
+
+    for (tire_transform, tire) in &tires {
+        // handle acceleration and breaking forces
+        let force_at_tire = car_transform.rotation.mul_vec3(Vec3::new(250.0, 0.0, 0.0));
+        let tire_force_on_car = ExternalForce::at_point(
+            force_at_tire,
+            tire_transform.translation(),
+            car_transform.translation,
+        );
+        if tire_transform.translation().y < 0.3 && tire.connected_to_engine {
+            if keys.pressed(KeyCode::W) {
+                final_force += tire_force_on_car;
+            } else if keys.pressed(KeyCode::S) {
+                final_force -= tire_force_on_car;
             }
         }
-        external_force.force = final_force.force;
-        external_force.torque = final_force.torque;
-    } else if keys.pressed(KeyCode::S) {
-        external_force.force = car_transform
-            .rotation
-            .mul_vec3(Vec3::new(-1000.0, 0.0, 0.0));
-    } else {
-        external_force.force = Vec3::ZERO;
+
+        // handle turning forces (this will need to be changed)
+        if keys.pressed(KeyCode::D) {
+            final_force.torque -= Vec3::new(0.0, 500.0, 0.0);
+        } else if keys.pressed(KeyCode::A) {
+            final_force.torque += Vec3::new(0.0, 500.0, 0.0);
+        }
     }
 
-    if keys.pressed(KeyCode::D) {
-        external_force.torque = Vec3::new(0.0, -1000.0, 0.0);
-    } else if keys.pressed(KeyCode::A) {
-        external_force.torque = Vec3::new(0.0, 1000.0, 0.0);
-    } else {
-        external_force.torque = Vec3::ZERO;
-    }
+    // set the external forces on the car to the calculated final_force
+    external_force.force = final_force.force;
+    external_force.torque = final_force.torque;
 }
 
 fn cast_ray(
