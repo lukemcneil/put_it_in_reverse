@@ -23,9 +23,19 @@ fn main() {
             WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::Escape)),
         ))
         .add_systems(Startup, setup_physics)
-        .add_systems(Update, (keyboard_input, cast_ray, draw_tire_gizmos))
+        .add_systems(
+            Update,
+            (
+                calculate_tire_forces,
+                sum_all_forces_on_car.after(calculate_tire_forces),
+                draw_tire_force_gizmos.after(calculate_tire_forces),
+                cast_ray,
+                draw_tire_gizmos,
+            ),
+        )
         .register_type::<Car>()
         .register_type::<Tire>()
+        .add_event::<AddForceToCar>()
         .run();
 }
 
@@ -71,7 +81,7 @@ pub fn setup_physics(mut commands: Commands) {
         ))
         .with_children(|child_builder| {
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(3., -1., 1.)),
+                TransformBundle::from(Transform::from_xyz(3., -1.2, 1.5)),
                 Tire {
                     connected_to_engine: true,
                 },
@@ -79,7 +89,7 @@ pub fn setup_physics(mut commands: Commands) {
             ));
 
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(3., -1., -1.)),
+                TransformBundle::from(Transform::from_xyz(3., -1.2, -1.5)),
                 Tire {
                     connected_to_engine: true,
                 },
@@ -87,7 +97,7 @@ pub fn setup_physics(mut commands: Commands) {
             ));
 
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-3., -1., 1.)),
+                TransformBundle::from(Transform::from_xyz(-3., -1.2, 1.5)),
                 Tire {
                     connected_to_engine: false,
                 },
@@ -95,7 +105,7 @@ pub fn setup_physics(mut commands: Commands) {
             ));
 
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-3., -1., -1.)),
+                TransformBundle::from(Transform::from_xyz(-3., -1.2, -1.5)),
                 Tire {
                     connected_to_engine: false,
                 },
@@ -104,42 +114,78 @@ pub fn setup_physics(mut commands: Commands) {
         });
 }
 
-fn keyboard_input(
+#[derive(Event, Default)]
+struct AddForceToCar {
+    force: Vec3,
+    point: Vec3,
+}
+
+fn calculate_tire_forces(
     keys: Res<Input<KeyCode>>,
-    mut car: Query<(&mut ExternalForce, &Transform, &Velocity), With<Car>>,
+    car: Query<&Transform, With<Car>>,
     tires: Query<(&GlobalTransform, &Tire)>,
+    mut ev_add_force_to_car: EventWriter<AddForceToCar>,
 ) {
-    let (mut external_force, car_transform, _velocity) = car.single_mut();
+    let car_transform = car.single();
+
+    // handle acceleration and breaking forces
+    for (tire_transform, tire) in &tires {
+        let force_at_tire = car_transform.rotation.mul_vec3(Vec3::new(250.0, 0.0, 0.0));
+        if tire_transform.translation().y < 0.3 && tire.connected_to_engine {
+            if keys.pressed(KeyCode::W) {
+                ev_add_force_to_car.send(AddForceToCar {
+                    force: force_at_tire,
+                    point: tire_transform.translation(),
+                });
+            } else if keys.pressed(KeyCode::S) {
+                ev_add_force_to_car.send(AddForceToCar {
+                    force: -force_at_tire,
+                    point: tire_transform.translation(),
+                });
+            }
+        }
+    }
+
+    // handle turning forces (this will need to be changed)
+    let turning_torque = car_transform.rotation.mul_vec3(Vec3::new(0.0, 0.0, 500.0));
+    let mut torque_translation = car_transform.translation.clone();
+    torque_translation += car_transform.rotation.mul_vec3(Vec3::new(3.0, 0.0, 0.0));
+    if keys.pressed(KeyCode::D) {
+        ev_add_force_to_car.send(AddForceToCar {
+            force: turning_torque,
+            point: torque_translation,
+        });
+    } else if keys.pressed(KeyCode::A) {
+        ev_add_force_to_car.send(AddForceToCar {
+            force: -turning_torque,
+            point: torque_translation,
+        });
+    }
+}
+
+fn sum_all_forces_on_car(
+    mut ev_add_force_to_car: EventReader<AddForceToCar>,
+    mut car: Query<(&mut ExternalForce, &Transform), With<Car>>,
+) {
     // we need to calculate one final linear force and angular torque to apply to the car
     let mut final_force = ExternalForce::default();
 
-    for (tire_transform, tire) in &tires {
-        // handle acceleration and breaking forces
-        let force_at_tire = car_transform.rotation.mul_vec3(Vec3::new(250.0, 0.0, 0.0));
-        let tire_force_on_car = ExternalForce::at_point(
-            force_at_tire,
-            tire_transform.translation(),
-            car_transform.translation,
-        );
-        if tire_transform.translation().y < 0.3 && tire.connected_to_engine {
-            if keys.pressed(KeyCode::W) {
-                final_force += tire_force_on_car;
-            } else if keys.pressed(KeyCode::S) {
-                final_force -= tire_force_on_car;
-            }
-        }
-
-        // handle turning forces (this will need to be changed)
-        if keys.pressed(KeyCode::D) {
-            final_force.torque -= Vec3::new(0.0, 500.0, 0.0);
-        } else if keys.pressed(KeyCode::A) {
-            final_force.torque += Vec3::new(0.0, 500.0, 0.0);
-        }
+    let (mut external_force, car_transform) = car.single_mut();
+    for AddForceToCar { force, point } in ev_add_force_to_car.iter() {
+        let force_on_car = ExternalForce::at_point(*force, *point, car_transform.translation);
+        final_force += force_on_car;
     }
 
     // set the external forces on the car to the calculated final_force
     external_force.force = final_force.force;
     external_force.torque = final_force.torque;
+}
+
+fn draw_tire_force_gizmos(mut ev_add_force_to_car: EventReader<AddForceToCar>, mut gizmos: Gizmos) {
+    let scale_factor = 0.005;
+    for AddForceToCar { force, point } in ev_add_force_to_car.iter() {
+        gizmos.ray(*point, *force * scale_factor, Color::BLUE);
+    }
 }
 
 fn draw_tire_gizmos(mut gizmos: Gizmos, tires: Query<(&GlobalTransform, &Tire)>) {
