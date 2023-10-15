@@ -165,7 +165,7 @@ fn calculate_tire_turning_forces(
             let desired_velocity_change = -steering_velocity * tire_grip_strength;
             let desired_acceleration = desired_velocity_change;
             ev_add_force_to_car.send(AddForceToCar {
-                force: steering_direction * desired_acceleration * car_transform.2 .0.mass,
+                force: steering_direction * desired_acceleration * car_transform.2.0.mass,
                 point: tire_transform.translation(),
             });
         }
