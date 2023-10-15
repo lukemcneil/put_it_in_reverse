@@ -50,7 +50,7 @@ struct Tire {
 pub fn setup_physics(mut commands: Commands) {
     // camera
     commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-30.0, 10.0, 0.0)
+        transform: Transform::from_xyz(-50.0, 50.0, 0.0)
             .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
         ..default()
     });

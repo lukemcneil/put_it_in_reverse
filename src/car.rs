@@ -1,5 +1,3 @@
-use std::f32::consts::PI;
-
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
@@ -34,10 +32,10 @@ pub fn spawn_car(commands: &mut Commands) {
             RigidBody::Dynamic,
             Collider::cuboid(3., 0.25, 1.),
             Car,
+            ReadMassProperties::default(),
             Velocity::default(),
             ExternalForce::default(),
             Name::from("Car"),
-            Friction::coefficient(0.7),
         ))
         .with_children(|child_builder| {
             child_builder.spawn((
@@ -84,16 +82,38 @@ struct AddForceToCar {
     point: Vec3,
 }
 
+fn lookup_power(velocity: Velocity) -> f32 {
+    let max_speed = 100.0;
+    let speed_ratio = (velocity.linvel.x.abs() + velocity.linvel.z.abs()) / max_speed;
+    let graph1 = -(-0.5 * speed_ratio + 0.3).log(10.0);
+    let graph2 = 1.0;
+    let graph3 = (-5.0 * speed_ratio + 6.0).log(10.0) + 0.6;
+    let mut returned_force = 0.0;
+    if speed_ratio < 0.0 {
+        returned_force = 0.5 * max_speed;
+    } else if speed_ratio >= 0.0 && speed_ratio < 0.4 {
+        returned_force = graph1 * max_speed;
+    } else if speed_ratio >= 0.4 && speed_ratio <= 0.698 {
+        returned_force = graph2 * max_speed;
+    } else if speed_ratio > 0.698 && speed_ratio <= 1.0 {
+        returned_force = graph3 * max_speed;
+    } else {
+        return returned_force;
+    }
+    return returned_force;
+}
+
 fn calculate_tire_acceleration_and_braking_forces(
     keys: Res<Input<KeyCode>>,
     tires: Query<(&GlobalTransform, &Tire)>,
+    car: Query<&Velocity, With<Car>>,
     mut ev_add_force_to_car: EventWriter<AddForceToCar>,
 ) {
     for (tire_transform, tire) in &tires {
         let force_at_tire = tire_transform
             .compute_transform()
             .rotation
-            .mul_vec3(Vec3::new(75.0, 0.0, 0.0));
+            .mul_vec3(Vec3::new(lookup_power(*car.single()), 0.0, 0.0));
         if tire_transform.translation().y < 0.3 && tire.connected_to_engine {
             if keys.pressed(KeyCode::W) {
                 ev_add_force_to_car.send(AddForceToCar {
@@ -111,7 +131,7 @@ fn calculate_tire_acceleration_and_braking_forces(
 }
 
 fn turn_tires(keys: Res<Input<KeyCode>>, mut tires: Query<(&mut Transform, &Tire)>) {
-    let turning_radius = PI / 5.0;
+    let turning_radius = 0.296706;
     for (mut tire_transform, tire) in &mut tires {
         if let Location::Front = tire.location {
             if keys.pressed(KeyCode::D) {
@@ -126,11 +146,11 @@ fn turn_tires(keys: Res<Input<KeyCode>>, mut tires: Query<(&mut Transform, &Tire
 }
 
 fn calculate_tire_turning_forces(
-    car: Query<(&Transform, &Velocity), With<Car>>,
+    car: Query<(&Transform, &Velocity, &ReadMassProperties), With<Car>>,
     tires: Query<&GlobalTransform, With<Tire>>,
     mut ev_add_force_to_car: EventWriter<AddForceToCar>,
 ) {
-    let tire_grip_strength = 1.0;
+    let tire_grip_strength = 0.7;
     for tire_transform in &tires {
         if tire_transform.compute_transform().translation.y < 0.2 {
             let car_transform = car.single();
@@ -145,7 +165,7 @@ fn calculate_tire_turning_forces(
             let desired_velocity_change = -steering_velocity * tire_grip_strength;
             let desired_acceleration = desired_velocity_change;
             ev_add_force_to_car.send(AddForceToCar {
-                force: steering_direction * desired_acceleration * 15.0,
+                force: steering_direction * desired_acceleration * car_transform.2 .0.mass,
                 point: tire_transform.translation(),
             });
         }
