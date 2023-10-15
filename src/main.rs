@@ -23,7 +23,7 @@ fn main() {
             WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::Escape)),
         ))
         .add_systems(Startup, setup_physics)
-        .add_systems(Update, (keyboard_input, cast_ray))
+        .add_systems(Update, (keyboard_input, cast_ray, draw_tire_gizmos))
         .register_type::<Car>()
         .register_type::<Tire>()
         .run();
@@ -89,7 +89,7 @@ pub fn setup_physics(mut commands: Commands) {
             child_builder.spawn((
                 TransformBundle::from(Transform::from_xyz(-3., -1., 1.)),
                 Tire {
-                    connected_to_engine: true,
+                    connected_to_engine: false,
                 },
                 Name::from("Tire Back Right"),
             ));
@@ -97,7 +97,7 @@ pub fn setup_physics(mut commands: Commands) {
             child_builder.spawn((
                 TransformBundle::from(Transform::from_xyz(-3., -1., -1.)),
                 Tire {
-                    connected_to_engine: true,
+                    connected_to_engine: false,
                 },
                 Name::from("Tire Back Left"),
             ));
@@ -107,7 +107,7 @@ pub fn setup_physics(mut commands: Commands) {
 fn keyboard_input(
     keys: Res<Input<KeyCode>>,
     mut car: Query<(&mut ExternalForce, &Transform, &Velocity), With<Car>>,
-    tires: Query<(&GlobalTransform, &Tire), With<Tire>>,
+    tires: Query<(&GlobalTransform, &Tire)>,
 ) {
     let (mut external_force, car_transform, _velocity) = car.single_mut();
     // we need to calculate one final linear force and angular torque to apply to the car
@@ -140,6 +140,21 @@ fn keyboard_input(
     // set the external forces on the car to the calculated final_force
     external_force.force = final_force.force;
     external_force.torque = final_force.torque;
+}
+
+fn draw_tire_gizmos(mut gizmos: Gizmos, tires: Query<(&GlobalTransform, &Tire)>) {
+    for (global_transform, tire) in &tires {
+        gizmos.sphere(
+            global_transform.translation(),
+            Quat::IDENTITY,
+            0.3,
+            if tire.connected_to_engine {
+                Color::RED
+            } else {
+                Color::BLACK
+            },
+        );
+    }
 }
 
 fn cast_ray(
