@@ -1,7 +1,9 @@
+use std::f32::consts::PI;
+
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{Car, Tire};
+use crate::{Car, Location, Tire};
 
 pub struct CarPlugin;
 
@@ -41,6 +43,7 @@ pub fn spawn_car(commands: &mut Commands) {
                 TransformBundle::from(Transform::from_xyz(3., -1.2, 1.5)),
                 Tire {
                     connected_to_engine: true,
+                    location: Location::Front,
                 },
                 Name::from("Tire Front Right"),
             ));
@@ -49,6 +52,7 @@ pub fn spawn_car(commands: &mut Commands) {
                 TransformBundle::from(Transform::from_xyz(3., -1.2, -1.5)),
                 Tire {
                     connected_to_engine: true,
+                    location: Location::Front,
                 },
                 Name::from("Tire Front Left"),
             ));
@@ -57,6 +61,7 @@ pub fn spawn_car(commands: &mut Commands) {
                 TransformBundle::from(Transform::from_xyz(-3., -1.2, 1.5)),
                 Tire {
                     connected_to_engine: false,
+                    location: Location::Back,
                 },
                 Name::from("Tire Back Right"),
             ));
@@ -65,6 +70,7 @@ pub fn spawn_car(commands: &mut Commands) {
                 TransformBundle::from(Transform::from_xyz(-3., -1.2, -1.5)),
                 Tire {
                     connected_to_engine: false,
+                    location: Location::Back,
                 },
                 Name::from("Tire Back Left"),
             ));
@@ -104,22 +110,45 @@ fn calculate_tire_acceleration_and_braking_forces(
 
 fn calculate_tire_turning_forces(
     keys: Res<Input<KeyCode>>,
-    car: Query<&Transform, With<Car>>,
+    car: Query<(&Transform, &Velocity), With<Car>>,
+    tires: Query<(&GlobalTransform, &Tire)>,
     mut ev_add_force_to_car: EventWriter<AddForceToCar>,
 ) {
-    let car_transform = car.single();
-    let turning_torque = car_transform.rotation.mul_vec3(Vec3::new(0.0, 0.0, 500.0));
-    let mut torque_translation = car_transform.translation.clone();
-    torque_translation += car_transform.rotation.mul_vec3(Vec3::new(3.0, 0.0, 0.0));
-    if keys.pressed(KeyCode::D) {
+    let tire_grip_strength = 1.0;
+    for (tire_transform, tire) in &tires {
+        let car_transform = car.single();
+        let mut torque_translation = car_transform.0.translation.clone();
+        torque_translation += car_transform.0.rotation.mul_vec3(Vec3::new(3.0, 0.0, 0.0));
+        let mut temp_tire_transform = tire_transform.compute_transform();
+        if keys.pressed(KeyCode::D) {
+            match tire.location {
+                Location::Front => {
+                    temp_tire_transform.rotate_y(PI / 3.0);
+                }
+                Location::Back => (),
+            }
+        } else if keys.pressed(KeyCode::A) {
+            match tire.location {
+                Location::Front => {
+                    temp_tire_transform.rotate_y(-PI / 3.0);
+                }
+                Location::Back => (),
+            }
+        }
+        let steering_direction = temp_tire_transform.right();
+        let tire_velocity = car_transform
+            .1
+            .linear_velocity_at_point(tire_transform.translation(), car_transform.0.translation);
+        let steering_velocity = steering_direction.dot(tire_velocity);
+        let desired_velocity_change = -steering_velocity * tire_grip_strength;
+        let desired_acceleration = desired_velocity_change;
+        println!(
+            "steering direction {}\ndesired acceleration {}",
+            steering_direction, desired_acceleration
+        );
         ev_add_force_to_car.send(AddForceToCar {
-            force: turning_torque,
-            point: torque_translation,
-        });
-    } else if keys.pressed(KeyCode::A) {
-        ev_add_force_to_car.send(AddForceToCar {
-            force: -turning_torque,
-            point: torque_translation,
+            force: steering_direction * (desired_acceleration * 10.0),
+            point: tire_transform.translation(),
         });
     }
 }

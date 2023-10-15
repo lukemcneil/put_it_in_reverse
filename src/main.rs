@@ -29,6 +29,13 @@ fn main() {
         .add_systems(Update, cast_ray)
         .run();
 }
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
+enum Location {
+    #[default]
+    Front,
+    Back,
+}
 
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]
@@ -37,6 +44,7 @@ struct Car;
 #[reflect(Component)]
 struct Tire {
     connected_to_engine: bool,
+    location: Location,
 }
 
 pub fn setup_physics(mut commands: Commands) {
