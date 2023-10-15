@@ -13,9 +13,11 @@ impl Plugin for CarPlugin {
             .add_systems(
                 Update,
                 (
-                    calculate_tire_forces,
-                    sum_all_forces_on_car.after(calculate_tire_forces),
-                    draw_tire_force_gizmos.after(calculate_tire_forces),
+                    calculate_tire_acceleration_and_braking_forces,
+                    calculate_tire_turning_forces,
+                    (sum_all_forces_on_car, draw_tire_force_gizmos)
+                        .after(calculate_tire_acceleration_and_braking_forces)
+                        .after(calculate_tire_turning_forces),
                     draw_tire_gizmos,
                 ),
             );
@@ -75,15 +77,13 @@ struct AddForceToCar {
     point: Vec3,
 }
 
-fn calculate_tire_forces(
+fn calculate_tire_acceleration_and_braking_forces(
     keys: Res<Input<KeyCode>>,
     car: Query<&Transform, With<Car>>,
     tires: Query<(&GlobalTransform, &Tire)>,
     mut ev_add_force_to_car: EventWriter<AddForceToCar>,
 ) {
     let car_transform = car.single();
-
-    // handle acceleration and breaking forces
     for (tire_transform, tire) in &tires {
         let force_at_tire = car_transform.rotation.mul_vec3(Vec3::new(250.0, 0.0, 0.0));
         if tire_transform.translation().y < 0.3 && tire.connected_to_engine {
@@ -100,8 +100,14 @@ fn calculate_tire_forces(
             }
         }
     }
+}
 
-    // handle turning forces (this will need to be changed)
+fn calculate_tire_turning_forces(
+    keys: Res<Input<KeyCode>>,
+    car: Query<&Transform, With<Car>>,
+    mut ev_add_force_to_car: EventWriter<AddForceToCar>,
+) {
+    let car_transform = car.single();
     let turning_torque = car_transform.rotation.mul_vec3(Vec3::new(0.0, 0.0, 500.0));
     let mut torque_translation = car_transform.translation.clone();
     torque_translation += car_transform.rotation.mul_vec3(Vec3::new(3.0, 0.0, 0.0));
