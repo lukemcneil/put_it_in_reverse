@@ -41,7 +41,7 @@ pub fn spawn_car(commands: &mut Commands) {
         ))
         .with_children(|child_builder| {
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(3., -0.25, 1.7)),
+                TransformBundle::from(Transform::from_xyz(2.5, -0.125, 1.0)),
                 Tire {
                     connected_to_engine: true,
                     location: Location::Front,
@@ -50,7 +50,7 @@ pub fn spawn_car(commands: &mut Commands) {
             ));
 
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(3., -0.25, -1.7)),
+                TransformBundle::from(Transform::from_xyz(2.5, -0.125, -1.0)),
                 Tire {
                     connected_to_engine: true,
                     location: Location::Front,
@@ -59,7 +59,7 @@ pub fn spawn_car(commands: &mut Commands) {
             ));
 
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-3., -0.25, 1.7)),
+                TransformBundle::from(Transform::from_xyz(-2.5, -0.125, 1.0)),
                 Tire {
                     connected_to_engine: false,
                     location: Location::Back,
@@ -68,7 +68,7 @@ pub fn spawn_car(commands: &mut Commands) {
             ));
 
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-3., -0.25, -1.7)),
+                TransformBundle::from(Transform::from_xyz(-2.5, -0.125, -1.0)),
                 Tire {
                     connected_to_engine: false,
                     location: Location::Back,
@@ -130,7 +130,7 @@ fn calculate_tire_turning_forces(
     tires: Query<&GlobalTransform, With<Tire>>,
     mut ev_add_force_to_car: EventWriter<AddForceToCar>,
 ) {
-    let tire_grip_strength = 0.7;
+    let tire_grip_strength = 1.0;
     for tire_transform in &tires {
         if tire_transform.compute_transform().translation.y < 0.2 {
             let car_transform = car.single();
@@ -145,7 +145,7 @@ fn calculate_tire_turning_forces(
             let desired_velocity_change = -steering_velocity * tire_grip_strength;
             let desired_acceleration = desired_velocity_change;
             ev_add_force_to_car.send(AddForceToCar {
-                force: steering_direction * desired_acceleration * 10.0,
+                force: steering_direction * desired_acceleration * 15.0,
                 point: tire_transform.translation(),
             });
         }
