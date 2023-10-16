@@ -16,6 +16,7 @@ impl Plugin for CarPlugin {
                     turn_tires,
                     calculate_tire_acceleration_and_braking_forces,
                     calculate_tire_turning_forces,
+                    suspension_force_calculations,
                     (sum_all_forces_on_car, draw_tire_force_gizmos)
                         .after(calculate_tire_acceleration_and_braking_forces)
                         .after(calculate_tire_turning_forces),
@@ -81,6 +82,36 @@ pub fn spawn_car(commands: &mut Commands) {
 struct AddForceToCar {
     force: Vec3,
     point: Vec3,
+}
+
+fn suspension_force_calculations(
+    tires: Query<&GlobalTransform, With<Tire>>,
+    car: Query<(&Velocity, &Transform), With<Car>>,
+    rapier_context: Res<RapierContext>,
+    mut ev_add_force_to_car: EventWriter<AddForceToCar>,
+) {
+    let (car_velocity, car_transform) = car.single();
+    for tire_transform in &tires {
+        let hit = rapier_context.cast_ray(
+            tire_transform.translation(),
+            tire_transform.down(),
+            0.5,
+            false,
+            QueryFilter::only_fixed(),
+        );
+        if hit.is_some() {
+            let spring_direction = tire_transform.up();
+            let tire_velocity = car_velocity
+                .linear_velocity_at_point(tire_transform.translation(), car_transform.translation);
+            let offset = 0.5 - hit.unwrap().1;
+            let velocity = spring_direction.dot(tire_velocity);
+            let force = (offset * 10.0) - (velocity * 1.5);
+            ev_add_force_to_car.send(AddForceToCar {
+                force: spring_direction * force,
+                point: tire_transform.translation(),
+            });
+        }
+    }
 }
 
 fn lookup_power(velocity: Velocity) -> f32 {
