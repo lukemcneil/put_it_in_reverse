@@ -6,12 +6,12 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use bevy_inspector_egui::quick::WorldInspectorPlugin;
-use bevy_rapier3d::prelude::*;
 use bevy::{
     reflect::{TypePath, TypeUuid},
     render::render_resource::{AsBindGroup, ShaderRef},
 };
+use bevy_inspector_egui::quick::WorldInspectorPlugin;
+use bevy_rapier3d::prelude::*;
 
 fn main() {
     App::new()
@@ -79,19 +79,29 @@ struct Tire {
     location: Location,
 }
 
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
+struct CameraPosition;
+
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
+struct CarCamera;
+
 pub fn setup_physics(
-    mut commands: Commands, 
+    mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<CustomMaterial>>,
 ) {
     // camera
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-50.0, 50.0, 0.0)
-            .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
-        ..default()
-    });
-
+    commands.spawn((
+        Camera3dBundle {
+            transform: Transform::from_xyz(-50.0, 50.0, 0.0)
+                .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
+            ..default()
+        },
+        CarCamera,
+    ));
 
     // ground
     let ground_size = 200.1;
@@ -101,11 +111,14 @@ pub fn setup_physics(
         // TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
         Collider::cuboid(ground_size, ground_height, ground_size),
         Name::from("Floor"),
-        MaterialMeshBundle{
-            mesh: meshes.add(Mesh::from(shape::Plane { size: 200.0, subdivisions: 0 })),
+        MaterialMeshBundle {
+            mesh: meshes.add(Mesh::from(shape::Plane {
+                size: 200.0,
+                subdivisions: 0,
+            })),
             material: materials.add(CustomMaterial {
                 color: default(),
-                color_texture: Some(asset_server.load("models/floor.png")),
+                color_texture: Some(asset_server.load("models/floor1.png")),
                 alpha_mode: AlphaMode::Blend,
             }),
             transform: Transform::from_xyz(0.0, -ground_height, 0.0),
@@ -113,8 +126,6 @@ pub fn setup_physics(
             ..default()
         },
     ));
-
-
 
     // car and tires
     car::spawn_car(&mut commands);

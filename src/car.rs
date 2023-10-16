@@ -1,7 +1,7 @@
 use bevy::prelude::*;
 use bevy_rapier3d::prelude::*;
 
-use crate::{Car, Location, Tire};
+use crate::{CameraPosition, Car, CarCamera, Location, Tire};
 
 pub struct CarPlugin;
 
@@ -17,6 +17,7 @@ impl Plugin for CarPlugin {
                     calculate_tire_acceleration_and_braking_forces,
                     calculate_tire_turning_forces,
                     suspension_force_calculations,
+                    camera_follow_car,
                     (sum_all_forces_on_car, draw_tire_force_gizmos)
                         .after(calculate_tire_acceleration_and_braking_forces)
                         .after(calculate_tire_turning_forces),
@@ -75,7 +76,29 @@ pub fn spawn_car(commands: &mut Commands) {
                 },
                 Name::from("Tire Back Left"),
             ));
+
+            child_builder.spawn((
+                TransformBundle::from(
+                    Transform::from_xyz(-40.0, 40.0, 0.0)
+                        .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
+                ),
+                CameraPosition,
+                Name::from("Camera Desired Position"),
+            ));
         });
+}
+
+fn camera_follow_car(
+    mut camera: Query<&mut Transform, With<CarCamera>>,
+    car_camera_desired_position: Query<&GlobalTransform, With<CameraPosition>>,
+    car: Query<&GlobalTransform, With<Car>>,
+) {
+    let new_cam_location =  car_camera_desired_position.single();
+    for mut car_camera in &mut camera {
+        let lerped_position = car_camera.translation.lerp(new_cam_location.translation(), 0.01);
+        car_camera.translation = Vec3::new(lerped_position.x, 30.0, lerped_position.z);
+        car_camera.rotation = car_camera.looking_at(car.single().translation(), Vec3::Y).rotation;
+    }
 }
 
 #[derive(Event, Default)]
@@ -103,7 +126,7 @@ fn suspension_force_calculations(
             let spring_direction = tire_transform.up();
             let tire_velocity = car_velocity
                 .linear_velocity_at_point(tire_transform.translation(), car_transform.translation);
-            let offset = 2.0 - hit.unwrap().1;
+            let offset = 0.5 - hit.unwrap().1;
             let velocity = spring_direction.dot(tire_velocity);
             let force = (offset * 10.0) - (velocity * 1.5);
             ev_add_force_to_car.send(AddForceToCar {
@@ -147,7 +170,7 @@ fn calculate_tire_acceleration_and_braking_forces(
             .compute_transform()
             .rotation
             .mul_vec3(Vec3::new(lookup_power(*car.single()), 0.0, 0.0));
-        if tire_transform.translation().y < 5.0 && tire.connected_to_engine {
+        if tire_transform.translation().y < 1.0 && tire.connected_to_engine {
             if keys.pressed(KeyCode::W) {
                 ev_add_force_to_car.send(AddForceToCar {
                     force: force_at_tire,
@@ -183,10 +206,10 @@ fn calculate_tire_turning_forces(
     tires: Query<&GlobalTransform, With<Tire>>,
     mut ev_add_force_to_car: EventWriter<AddForceToCar>,
 ) {
-    let tire_grip_strength = 0.7;
+    let tire_grip_strength = 0.4;
     let (car_transform, car_velocity, ReadMassProperties(car_mass)) = car.single();
     for tire_transform in &tires {
-        if tire_transform.compute_transform().translation.y < 5.0 {
+        if tire_transform.compute_transform().translation.y < 1.0 {
             let steering_direction = tire_transform.compute_transform().forward();
             let tire_velocity = car_velocity
                 .linear_velocity_at_point(tire_transform.translation(), car_transform.translation);
