@@ -151,21 +151,17 @@ fn calculate_tire_turning_forces(
     mut ev_add_force_to_car: EventWriter<AddForceToCar>,
 ) {
     let tire_grip_strength = 0.7;
+    let (car_transform, car_velocity, ReadMassProperties(car_mass)) = car.single();
     for tire_transform in &tires {
         if tire_transform.compute_transform().translation.y < 0.2 {
-            let car_transform = car.single();
-            let mut torque_translation = car_transform.0.translation.clone();
-            torque_translation += car_transform.0.rotation.mul_vec3(Vec3::new(3.0, 0.0, 0.0));
             let steering_direction = tire_transform.compute_transform().forward();
-            let tire_velocity = car_transform.1.linear_velocity_at_point(
-                tire_transform.translation(),
-                car_transform.0.translation,
-            );
+            let tire_velocity = car_velocity
+                .linear_velocity_at_point(tire_transform.translation(), car_transform.translation);
             let steering_velocity = steering_direction.dot(tire_velocity);
             let desired_velocity_change = -steering_velocity * tire_grip_strength;
-            let desired_acceleration = desired_velocity_change;
+            let desired_acceleration = desired_velocity_change * 5.0;
             ev_add_force_to_car.send(AddForceToCar {
-                force: steering_direction * desired_acceleration * car_transform.2.0.mass,
+                force: steering_direction * desired_acceleration * car_mass.mass,
                 point: tire_transform.translation(),
             });
         }
