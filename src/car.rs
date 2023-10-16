@@ -94,11 +94,10 @@ fn camera_follow_car(
     car: Query<&GlobalTransform, With<Car>>,
 ) {
     let new_cam_location =  car_camera_desired_position.single();
-    for mut car_camera in &mut camera {
-        let lerped_position = car_camera.translation.lerp(new_cam_location.translation(), 0.01);
-        car_camera.translation = Vec3::new(lerped_position.x, 30.0, lerped_position.z);
-        car_camera.rotation = car_camera.looking_at(car.single().translation(), Vec3::Y).rotation;
-    }
+    let mut car_camera = camera.single_mut();
+    let lerped_position = car_camera.translation.lerp(new_cam_location.translation(), 0.01);
+    car_camera.translation = Vec3::new(lerped_position.x, 30.0, lerped_position.z);
+    car_camera.rotation = car_camera.looking_at(car.single().translation(), Vec3::Y).rotation;
 }
 
 #[derive(Event, Default)]
@@ -126,9 +125,9 @@ fn suspension_force_calculations(
             let spring_direction = tire_transform.up();
             let tire_velocity = car_velocity
                 .linear_velocity_at_point(tire_transform.translation(), car_transform.translation);
-            let offset = 0.5 - hit.unwrap().1;
+            let offset = 1.5 - hit.unwrap().1;
             let velocity = spring_direction.dot(tire_velocity);
-            let force = (offset * 10.0) - (velocity * 1.5);
+            let force = (offset * 100.0) - (velocity * 35.0);
             ev_add_force_to_car.send(AddForceToCar {
                 force: spring_direction * force,
                 point: tire_transform.translation(),

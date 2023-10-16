@@ -1,7 +1,5 @@
 mod car;
 
-use std::f32::consts::PI;
-
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
@@ -118,7 +116,7 @@ pub fn setup_physics(
             })),
             material: materials.add(CustomMaterial {
                 color: default(),
-                color_texture: Some(asset_server.load("models/floor1.png")),
+                color_texture: Some(asset_server.load("models/floor.png")),
                 alpha_mode: AlphaMode::Blend,
             }),
             transform: Transform::from_xyz(0.0, -ground_height, 0.0),
