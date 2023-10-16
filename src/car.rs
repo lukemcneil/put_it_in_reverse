@@ -103,9 +103,9 @@ fn suspension_force_calculations(
             let spring_direction = tire_transform.up();
             let tire_velocity = car_velocity
                 .linear_velocity_at_point(tire_transform.translation(), car_transform.translation);
-            let offset = 0.5 - hit.unwrap().1;
+            let offset = 2.0 - hit.unwrap().1;
             let velocity = spring_direction.dot(tire_velocity);
-            let force = (offset * 10.0) - (velocity * 1.5);
+            let force = (offset * 10.0) - (velocity * 5.0);
             ev_add_force_to_car.send(AddForceToCar {
                 force: spring_direction * force,
                 point: tire_transform.translation(),
@@ -147,7 +147,7 @@ fn calculate_tire_acceleration_and_braking_forces(
             .compute_transform()
             .rotation
             .mul_vec3(Vec3::new(lookup_power(*car.single()), 0.0, 0.0));
-        if tire_transform.translation().y < 0.3 && tire.connected_to_engine {
+        if tire_transform.translation().y < 5.0 && tire.connected_to_engine {
             if keys.pressed(KeyCode::W) {
                 ev_add_force_to_car.send(AddForceToCar {
                     force: force_at_tire,
@@ -186,7 +186,7 @@ fn calculate_tire_turning_forces(
     let tire_grip_strength = 0.7;
     let (car_transform, car_velocity, ReadMassProperties(car_mass)) = car.single();
     for tire_transform in &tires {
-        if tire_transform.compute_transform().translation.y < 0.2 {
+        if tire_transform.compute_transform().translation.y < 5.0 {
             let steering_direction = tire_transform.compute_transform().forward();
             let tire_velocity = car_velocity
                 .linear_velocity_at_point(tire_transform.translation(), car_transform.translation);
