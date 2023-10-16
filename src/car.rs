@@ -105,7 +105,7 @@ fn suspension_force_calculations(
                 .linear_velocity_at_point(tire_transform.translation(), car_transform.translation);
             let offset = 2.0 - hit.unwrap().1;
             let velocity = spring_direction.dot(tire_velocity);
-            let force = (offset * 10.0) - (velocity * 5.0);
+            let force = (offset * 10.0) - (velocity * 1.5);
             ev_add_force_to_car.send(AddForceToCar {
                 force: spring_direction * force,
                 point: tire_transform.translation(),
