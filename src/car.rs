@@ -36,6 +36,7 @@ pub fn spawn_car(commands: &mut Commands) {
             Velocity::default(),
             ExternalForce::default(),
             Name::from("Car"),
+            Friction::coefficient(0.5),
         ))
         .with_children(|child_builder| {
             child_builder.spawn((
@@ -83,20 +84,21 @@ struct AddForceToCar {
 }
 
 fn lookup_power(velocity: Velocity) -> f32 {
-    let max_speed = 100.0;
-    let speed_ratio = (velocity.linvel.x.abs() + velocity.linvel.z.abs()) / max_speed;
+    let max_speed = 30.0;
+    let max_force: f32 = 100.0;
+    let speed_ratio = velocity.linvel.length() / max_speed;
     let graph1 = -(-0.5 * speed_ratio + 0.3).log(10.0);
     let graph2 = 1.0;
     let graph3 = (-5.0 * speed_ratio + 6.0).log(10.0) + 0.6;
     let mut returned_force = 0.0;
     if speed_ratio < 0.0 {
-        returned_force = 0.5 * max_speed;
+        returned_force = 0.5 * max_force;
     } else if speed_ratio >= 0.0 && speed_ratio < 0.4 {
-        returned_force = graph1 * max_speed;
+        returned_force = graph1 * max_force;
     } else if speed_ratio >= 0.4 && speed_ratio <= 0.698 {
-        returned_force = graph2 * max_speed;
+        returned_force = graph2 * max_force;
     } else if speed_ratio > 0.698 && speed_ratio <= 1.0 {
-        returned_force = graph3 * max_speed;
+        returned_force = graph3 * max_force;
     } else {
         return returned_force;
     }

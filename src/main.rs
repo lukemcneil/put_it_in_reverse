@@ -61,7 +61,7 @@ pub fn setup_physics(mut commands: Commands) {
     commands.spawn((
         TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
         Collider::cuboid(ground_size, ground_height, ground_size),
-        Friction::coefficient(0.7),
+        Friction::coefficient(0.5),
         Name::from("Floor"),
     ));
 
