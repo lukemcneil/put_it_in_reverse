@@ -67,6 +67,25 @@ pub fn setup_physics(mut commands: Commands) {
 
     // car and tires
     car::spawn_car(&mut commands);
+
+    // add boxes to run into
+    let w = 10;
+    let h = 5;
+    for x in (-w / 2)..(w / 2) {
+        for y in 0..h {
+            commands.spawn((
+                TransformBundle::from(Transform::from_xyz(
+                    10.0,
+                    (y as f32) * 1.5,
+                    (x as f32) * 1.5,
+                )),
+                RigidBody::Dynamic,
+                Collider::cuboid(0.5, 0.5, 0.5),
+                Friction::coefficient(0.5),
+                Name::from(format!("Box ({},{})", x, y)),
+            ));
+        }
+    }
 }
 
 fn cast_ray(
