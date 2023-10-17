@@ -124,7 +124,7 @@ fn suspension_force_calculations(
         let hit = rapier_context.cast_ray(
             tire_transform.translation(),
             tire_transform.down(),
-            0.5,
+            1.5,
             false,
             QueryFilter::only_fixed(),
         );
@@ -134,9 +134,9 @@ fn suspension_force_calculations(
                 tire_transform.translation(),
                 parent_transform.translation,
             );
-            let offset = 0.5 - hit.unwrap().1;
+            let offset = 1.5 - hit.unwrap().1;
             let velocity = spring_direction.dot(tire_velocity);
-            let force = (offset * 100.0) - (velocity * 35.0);
+            let force = (offset * 100.0) - (velocity * 10.0);
             add_forces.send(AddForce {
                 force: spring_direction * force,
                 point: tire_transform.translation(),
@@ -147,8 +147,8 @@ fn suspension_force_calculations(
 }
 
 fn lookup_power(velocity: Velocity) -> f32 {
-    let max_speed = 30.0;
-    let max_force: f32 = 100.0;
+    let max_speed = 10.0;
+    let max_force: f32 = 50.0;
     let speed_ratio = velocity.linvel.length() / max_speed;
     let graph1 = -(-0.5 * speed_ratio + 0.3).log(10.0);
     let graph2 = 1.0;
@@ -180,7 +180,7 @@ fn calculate_tire_acceleration_and_braking_forces(
             .compute_transform()
             .rotation
             .mul_vec3(Vec3::new(lookup_power(*parent_velocity), 0.0, 0.0));
-        if tire_transform.translation().y < 1.0 && tire.connected_to_engine {
+        if tire_transform.translation().y < 2.0 && tire.connected_to_engine {
             if keys.pressed(KeyCode::W) {
                 add_forces.send(AddForce {
                     force: force_at_tire,
@@ -223,7 +223,7 @@ fn calculate_tire_turning_forces(
     for (tire_transform, parent) in &tires {
         let (parent_entity, parent_transform, parent_velocity, ReadMassProperties(car_mass)) =
             car.get(parent.get()).unwrap();
-        if tire_transform.compute_transform().translation.y < 1.0 {
+        if tire_transform.compute_transform().translation.y < 2.0 {
             let steering_direction = tire_transform.compute_transform().forward();
             let tire_velocity = parent_velocity.linear_velocity_at_point(
                 tire_transform.translation(),

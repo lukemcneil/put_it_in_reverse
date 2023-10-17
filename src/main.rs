@@ -132,8 +132,8 @@ pub fn setup_physics(
     // car and tires
     let car_entity = car::spawn_car(&mut commands);
     let joint = SphericalJointBuilder::new()
-        .local_anchor1(Vec3::new(-3.2, 0.0, 0.0))
-        .local_anchor2(Vec3::new(2.2, 0.0, 0.0));
+        .local_anchor1(Vec3::new(-3.5, 0.0, 0.0))
+        .local_anchor2(Vec3::new(2.5, 0.0, 0.0));
     commands
         .spawn((
             TransformBundle::from(Transform::from_xyz(-5.0, 10.0, 0.0)),
