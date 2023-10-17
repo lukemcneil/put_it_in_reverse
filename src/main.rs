@@ -148,7 +148,7 @@ pub fn setup_physics(
         ))
         .with_children(|child_builder| {
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-0.5, -0.5, 2.0)),
+                TransformBundle::from(Transform::from_xyz(-0.5, -0.25, 2.1)),
                 Tire {
                     connected_to_engine: false,
                     location: Location::Back,
@@ -156,7 +156,7 @@ pub fn setup_physics(
                 Name::from("Tire Trailer Right"),
             ));
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-0.5, -0.5, -2.0)),
+                TransformBundle::from(Transform::from_xyz(-0.5, -0.25, -2.1)),
                 Tire {
                     connected_to_engine: false,
                     location: Location::Back,
