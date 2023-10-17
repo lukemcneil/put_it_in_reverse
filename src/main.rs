@@ -4,6 +4,10 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
+use bevy::{
+    reflect::{TypePath, TypeUuid},
+    render::render_resource::{AsBindGroup, ShaderRef},
+};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
 
@@ -18,6 +22,7 @@ fn main() {
             DefaultPlugins,
             RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin::default(),
+            MaterialPlugin::<CustomMaterial>::default(),
         ))
         .add_plugins((
             LogDiagnosticsPlugin::default(),
@@ -29,6 +34,31 @@ fn main() {
         .add_systems(Update, cast_ray)
         .run();
 }
+
+/// The Material trait is very configurable, but comes with sensible defaults for all methods.
+/// You only need to implement functions for features that need non-default behavior. See the Material api docs for details!
+impl Material for CustomMaterial {
+    fn fragment_shader() -> ShaderRef {
+        "shaders/custom_material.wgsl".into()
+    }
+
+    fn alpha_mode(&self) -> AlphaMode {
+        self.alpha_mode
+    }
+}
+
+// This is the struct that will be passed to your shader
+#[derive(AsBindGroup, TypeUuid, TypePath, Debug, Clone)]
+#[uuid = "f690fdae-d598-45ab-8225-97e2a3f056e0"]
+pub struct CustomMaterial {
+    #[uniform(0)]
+    color: Color,
+    #[texture(1)]
+    #[sampler(2)]
+    color_texture: Option<Handle<Image>>,
+    alpha_mode: AlphaMode,
+}
+
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]
 enum Location {
@@ -47,22 +77,52 @@ struct Tire {
     location: Location,
 }
 
-pub fn setup_physics(mut commands: Commands) {
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
+struct CameraPosition;
+
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
+struct CarCamera;
+
+pub fn setup_physics(
+    mut commands: Commands,
+    asset_server: Res<AssetServer>,
+    mut meshes: ResMut<Assets<Mesh>>,
+    mut materials: ResMut<Assets<CustomMaterial>>,
+) {
     // camera
-    commands.spawn(Camera3dBundle {
-        transform: Transform::from_xyz(-50.0, 50.0, 0.0)
-            .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
-        ..default()
-    });
+    commands.spawn((
+        Camera3dBundle {
+            transform: Transform::from_xyz(-50.0, 50.0, 0.0)
+                .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
+            ..default()
+        },
+        CarCamera,
+    ));
 
     // ground
     let ground_size = 200.1;
     let ground_height = 0.1;
+
     commands.spawn((
-        TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
+        // TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
         Collider::cuboid(ground_size, ground_height, ground_size),
-        Friction::coefficient(0.5),
         Name::from("Floor"),
+        MaterialMeshBundle {
+            mesh: meshes.add(Mesh::from(shape::Plane {
+                size: 200.0,
+                subdivisions: 0,
+            })),
+            material: materials.add(CustomMaterial {
+                color: default(),
+                color_texture: Some(asset_server.load("models/floor.png")),
+                alpha_mode: AlphaMode::Blend,
+            }),
+            transform: Transform::from_xyz(0.0, -ground_height, 0.0),
+            global_transform: default(),
+            ..default()
+        },
     ));
 
     // car and tires
