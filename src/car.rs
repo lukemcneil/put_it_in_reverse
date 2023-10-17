@@ -5,11 +5,34 @@ use crate::{CameraPosition, Car, CarCamera, Drivable, Location, Tire};
 
 pub struct CarPlugin;
 
+#[derive(Resource, Default)]
+pub struct VehicleConfigs {
+    pub configs: HashMap<String, VehicleConfig>,
+}
+
+pub struct VehicleConfig {
+    pub height: f32,
+    pub width: f32,
+    pub length: f32,
+    pub wheelbase: f32,
+    pub spring_offset: f32,
+    pub spring_power: f32,
+    pub shock: f32,
+    pub max_speed: f32,
+    pub max_force: f32,
+    pub turn_radius: f32,
+    pub weight: f32,
+}
+
 impl Plugin for CarPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<AddForce>()
             .register_type::<Car>()
             .register_type::<Tire>()
+            .insert_resource(VehicleConfigs {
+                configs: HashMap::new(),
+            })
+            .add_systems(Startup, make_vehicles)
             .add_systems(
                 Update,
                 (
@@ -27,23 +50,51 @@ impl Plugin for CarPlugin {
     }
 }
 
-pub fn spawn_car(commands: &mut Commands) -> Entity {
+fn make_vehicles(mut vehicle_configs: ResMut<VehicleConfigs>) {
+    vehicle_configs.configs.insert(
+        "F150".into(),
+        VehicleConfig {
+            height: 1.452024 / 2.0,
+            width: 2.02946 / 2.0,
+            length: 5.31114 / 2.0,
+            wheelbase: 3.11912 / 2.0,
+            spring_offset: 1.252926,
+            spring_power: 300.0,
+            shock: 45.0,
+            max_speed: 50.0,
+            max_force: 100.0,
+            turn_radius: 0.45811518324607,
+            weight: 30.0,
+        },
+    );
+}
+
+pub fn spawn_car(commands: &mut Commands, vehicle_configs: Res<VehicleConfigs>) -> Entity {
+    let vehicle_config = vehicle_configs.configs.get("F150").unwrap();
     commands
         .spawn((
-            TransformBundle::from(Transform::from_xyz(0., 10., 0.)),
+            TransformBundle::from(Transform::from_xyz(0., vehicle_config.height, 0.)),
             RigidBody::Dynamic,
-            Collider::cuboid(3., 0.25, 1.),
+            Collider::cuboid(
+                vehicle_config.length,
+                vehicle_config.height,
+                vehicle_config.width,
+            ),
+            AdditionalMassProperties::Mass(vehicle_config.weight - 26.0),
             Car,
             Drivable,
-            ReadMassProperties::default(),
             Velocity::default(),
             ExternalForce::default(),
             Name::from("Car"),
-            Friction::coefficient(0.5),
+            Friction::coefficient(0.0),
         ))
         .with_children(|child_builder| {
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(2.5, -0.125, 1.0)),
+                TransformBundle::from(Transform::from_xyz(
+                    vehicle_config.wheelbase,
+                    -vehicle_config.height / 3.0,
+                    vehicle_config.width,
+                )),
                 Tire {
                     connected_to_engine: true,
                     location: Location::Front,
@@ -52,7 +103,11 @@ pub fn spawn_car(commands: &mut Commands) -> Entity {
             ));
 
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(2.5, -0.125, -1.0)),
+                TransformBundle::from(Transform::from_xyz(
+                    vehicle_config.wheelbase,
+                    -vehicle_config.height / 3.0,
+                    -vehicle_config.width,
+                )),
                 Tire {
                     connected_to_engine: true,
                     location: Location::Front,
@@ -61,7 +116,11 @@ pub fn spawn_car(commands: &mut Commands) -> Entity {
             ));
 
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-2.5, -0.125, 1.0)),
+                TransformBundle::from(Transform::from_xyz(
+                    -vehicle_config.wheelbase,
+                    -vehicle_config.height / 3.0,
+                    vehicle_config.width,
+                )),
                 Tire {
                     connected_to_engine: false,
                     location: Location::Back,
@@ -70,7 +129,11 @@ pub fn spawn_car(commands: &mut Commands) -> Entity {
             ));
 
             child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-2.5, -0.125, -1.0)),
+                TransformBundle::from(Transform::from_xyz(
+                    -vehicle_config.wheelbase,
+                    -vehicle_config.height / 3.0,
+                    -vehicle_config.width,
+                )),
                 Tire {
                     connected_to_engine: false,
                     location: Location::Back,
@@ -117,8 +180,10 @@ fn suspension_force_calculations(
     tires: Query<(&GlobalTransform, &Parent), With<Tire>>,
     car: Query<(Entity, &Velocity, &Transform), With<Drivable>>,
     rapier_context: Res<RapierContext>,
+    vehicle_configs: Res<VehicleConfigs>,
     mut add_forces: EventWriter<AddForce>,
 ) {
+    let vehicle_config = vehicle_configs.configs.get("F150").unwrap();
     for (tire_transform, parent) in &tires {
         let (parent_entity, parent_velocity, parent_transform) = car.get(parent.get()).unwrap();
         let hit = rapier_context.cast_ray(
@@ -134,9 +199,9 @@ fn suspension_force_calculations(
                 tire_transform.translation(),
                 parent_transform.translation,
             );
-            let offset = 1.5 - hit.unwrap().1;
+            let offset = vehicle_config.spring_offset - hit.unwrap().1;
             let velocity = spring_direction.dot(tire_velocity);
-            let force = (offset * 100.0) - (velocity * 10.0);
+            let force = (offset * vehicle_config.spring_power) - (velocity * vehicle_config.shock);
             add_forces.send(AddForce {
                 force: spring_direction * force,
                 point: tire_transform.translation(),
@@ -146,9 +211,7 @@ fn suspension_force_calculations(
     }
 }
 
-fn lookup_power(velocity: Velocity) -> f32 {
-    let max_speed = 10.0;
-    let max_force: f32 = 50.0;
+fn lookup_power(velocity: Velocity, max_speed: f32, max_force: f32) -> f32 {
     let speed_ratio = velocity.linvel.length() / max_speed;
     let graph1 = -(-0.5 * speed_ratio + 0.3).log(10.0);
     let graph2 = 1.0;
@@ -171,16 +234,30 @@ fn lookup_power(velocity: Velocity) -> f32 {
 fn calculate_tire_acceleration_and_braking_forces(
     keys: Res<Input<KeyCode>>,
     tires: Query<(&GlobalTransform, &Parent, &Tire)>,
-    car: Query<(Entity, &Velocity), With<Drivable>>,
+    car: Query<(Entity, &Velocity, &Transform), With<Drivable>>,
+    vehicle_configs: Res<VehicleConfigs>,
     mut add_forces: EventWriter<AddForce>,
 ) {
+    let vehicle_config = vehicle_configs.configs.get("F150").unwrap();
+    let coefficient_of_friction = 0.012;
     for (tire_transform, parent, tire) in &tires {
-        let (parent_entity, parent_velocity) = car.get(parent.get()).unwrap();
+        let (parent_entity, parent_velocity, parent_transform) = car.get(parent.get()).unwrap();
         let force_at_tire = tire_transform
             .compute_transform()
             .rotation
-            .mul_vec3(Vec3::new(lookup_power(*parent_velocity), 0.0, 0.0));
-        if tire_transform.translation().y < 2.0 && tire.connected_to_engine {
+            .mul_vec3(Vec3::new(
+                lookup_power(
+                    *parent_velocity,
+                    vehicle_config.max_speed,
+                    vehicle_config.max_force,
+                ),
+                0.0,
+                0.0,
+            ));
+        if tire_transform.translation().y
+            < vehicle_config.height + vehicle_config.spring_offset * 2.0
+            && tire.connected_to_engine
+        {
             if keys.pressed(KeyCode::W) {
                 add_forces.send(AddForce {
                     force: force_at_tire,
@@ -189,7 +266,25 @@ fn calculate_tire_acceleration_and_braking_forces(
                 });
             } else if keys.pressed(KeyCode::S) {
                 add_forces.send(AddForce {
-                    force: -force_at_tire,
+                    force: -force_at_tire / 3.0,
+                    point: tire_transform.translation(),
+                    entity: parent_entity,
+                });
+            } else if parent_velocity.linvel.x.abs() > 0.0 || parent_velocity.linvel.z.abs() > 0.0 {
+                let mut negative_check = -1.0;
+                if parent_velocity.linvel.dot(parent_transform.right()) < 0.0 {
+                    negative_check = 1.0;
+                }
+                add_forces.send(AddForce {
+                    force: negative_check
+                        * tire_transform
+                            .compute_transform()
+                            .rotation
+                            .mul_vec3(Vec3::new(
+                                (vehicle_config.weight / 4.0) * coefficient_of_friction * 9.81,
+                                0.0,
+                                0.0,
+                            )),
                     point: tire_transform.translation(),
                     entity: parent_entity,
                 });
@@ -198,32 +293,43 @@ fn calculate_tire_acceleration_and_braking_forces(
     }
 }
 
-fn turn_tires(keys: Res<Input<KeyCode>>, mut tires: Query<(&mut Transform, &Tire)>) {
-    let turning_radius = 0.296706;
+fn turn_tires(
+    keys: Res<Input<KeyCode>>,
+    mut tires: Query<(&mut Transform, &Tire)>,
+    vehicle_configs: Res<VehicleConfigs>,
+) {
+    let vehicle_config = vehicle_configs.configs.get("F150").unwrap();
+    let turning_radius = vehicle_config.turn_radius;
     for (mut tire_transform, tire) in &mut tires {
         if let Location::Front = tire.location {
             if keys.pressed(KeyCode::D) {
-                tire_transform.rotation = Quat::from_axis_angle(Vec3::Y, -turning_radius);
+                tire_transform.rotation = tire_transform
+                    .rotation
+                    .lerp(Quat::from_axis_angle(Vec3::Y, -turning_radius), 0.001);
             } else if keys.pressed(KeyCode::A) {
-                tire_transform.rotation = Quat::from_axis_angle(Vec3::Y, turning_radius);
+                tire_transform.rotation = tire_transform
+                    .rotation
+                    .lerp(Quat::from_axis_angle(Vec3::Y, turning_radius), 0.001);
             } else {
-                tire_transform.rotation = Quat::IDENTITY;
+                tire_transform.rotation = tire_transform.rotation.lerp(Quat::IDENTITY, 0.01);
             }
         }
     }
 }
 
 fn calculate_tire_turning_forces(
-    car: Query<(Entity, &Transform, &Velocity, &ReadMassProperties), With<Drivable>>,
+    car: Query<(Entity, &Transform, &Velocity), With<Drivable>>,
     tires: Query<(&GlobalTransform, &Parent), With<Tire>>,
     mut add_forces: EventWriter<AddForce>,
+    vehicle_configs: Res<VehicleConfigs>,
 ) {
+    let vehicle_config = vehicle_configs.configs.get("F150").unwrap();
     let tire_grip_strength = 0.7;
-
     for (tire_transform, parent) in &tires {
-        let (parent_entity, parent_transform, parent_velocity, ReadMassProperties(car_mass)) =
-            car.get(parent.get()).unwrap();
-        if tire_transform.compute_transform().translation.y < 2.0 {
+        let (parent_entity, parent_transform, parent_velocity) = car.get(parent.get()).unwrap();
+        if tire_transform.compute_transform().translation.y
+            < vehicle_config.height + vehicle_config.spring_offset * 2.0
+        {
             let steering_direction = tire_transform.compute_transform().forward();
             let tire_velocity = parent_velocity.linear_velocity_at_point(
                 tire_transform.translation(),
@@ -233,7 +339,7 @@ fn calculate_tire_turning_forces(
             let desired_velocity_change = -steering_velocity * tire_grip_strength;
             let desired_acceleration = desired_velocity_change * 60.0;
             add_forces.send(AddForce {
-                force: steering_direction * desired_acceleration * (car_mass.mass / 4.0),
+                force: steering_direction * desired_acceleration * (vehicle_config.weight / 4.0),
                 point: tire_transform.translation(),
                 entity: parent_entity,
             });

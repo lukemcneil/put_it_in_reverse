@@ -10,6 +10,7 @@ use bevy::{
 };
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
+use car::VehicleConfigs;
 
 fn main() {
     App::new()
@@ -94,6 +95,7 @@ pub fn setup_physics(
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
     mut materials: ResMut<Assets<CustomMaterial>>,
+    vehicle_configs: Res<VehicleConfigs>,
 ) {
     // camera
     commands.spawn((
@@ -130,17 +132,18 @@ pub fn setup_physics(
     ));
 
     // car and tires
-    let car_entity = car::spawn_car(&mut commands);
+    let car_entity = car::spawn_car(&mut commands, vehicle_configs);
     let joint = SphericalJointBuilder::new()
-        .local_anchor1(Vec3::new(-3.5, 0.0, 0.0))
-        .local_anchor2(Vec3::new(2.5, 0.0, 0.0));
+        .local_anchor1(Vec3::new(-5.31114, 0.0, 0.0))
+        .local_anchor2(Vec3::new(3.6, 0.0, 0.0));
     commands
         .spawn((
-            TransformBundle::from(Transform::from_xyz(-5.0, 10.0, 0.0)),
+            TransformBundle::from(Transform::from_xyz(-5.0, 2.0, 0.0)),
             RigidBody::Dynamic,
             Collider::cuboid(2.0, 0.25, 2.0),
             Friction::coefficient(0.5),
             Drivable,
+            AdditionalMassProperties::Mass(0.0),
             Name::from("Trailer"),
             Velocity::default(),
             ReadMassProperties::default(),
