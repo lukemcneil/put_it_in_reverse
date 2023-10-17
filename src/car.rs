@@ -1,13 +1,13 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, utils::HashMap};
 use bevy_rapier3d::prelude::*;
 
-use crate::{CameraPosition, Car, CarCamera, Location, Tire};
+use crate::{CameraPosition, Car, CarCamera, Drivable, Location, Tire};
 
 pub struct CarPlugin;
 
 impl Plugin for CarPlugin {
     fn build(&self, app: &mut App) {
-        app.add_event::<AddForceToCar>()
+        app.add_event::<AddForce>()
             .register_type::<Car>()
             .register_type::<Tire>()
             .add_systems(
@@ -18,7 +18,7 @@ impl Plugin for CarPlugin {
                     calculate_tire_turning_forces,
                     suspension_force_calculations,
                     camera_follow_car,
-                    (sum_all_forces_on_car, draw_tire_force_gizmos)
+                    (sum_all_forces, draw_tire_force_gizmos)
                         .after(calculate_tire_acceleration_and_braking_forces)
                         .after(calculate_tire_turning_forces),
                     draw_tire_gizmos,
@@ -27,13 +27,14 @@ impl Plugin for CarPlugin {
     }
 }
 
-pub fn spawn_car(commands: &mut Commands) {
+pub fn spawn_car(commands: &mut Commands) -> Entity {
     commands
         .spawn((
             TransformBundle::from(Transform::from_xyz(0., 10., 0.)),
             RigidBody::Dynamic,
             Collider::cuboid(3., 0.25, 1.),
             Car,
+            Drivable,
             ReadMassProperties::default(),
             Velocity::default(),
             ExternalForce::default(),
@@ -85,7 +86,8 @@ pub fn spawn_car(commands: &mut Commands) {
                 CameraPosition,
                 Name::from("Camera Desired Position"),
             ));
-        });
+        })
+        .id()
 }
 
 fn camera_follow_car(
@@ -93,27 +95,32 @@ fn camera_follow_car(
     car_camera_desired_position: Query<&GlobalTransform, With<CameraPosition>>,
     car: Query<&GlobalTransform, With<Car>>,
 ) {
-    let new_cam_location =  car_camera_desired_position.single();
+    let new_cam_location = car_camera_desired_position.single();
     let mut car_camera = camera.single_mut();
-    let lerped_position = car_camera.translation.lerp(new_cam_location.translation(), 0.01);
+    let lerped_position = car_camera
+        .translation
+        .lerp(new_cam_location.translation(), 0.01);
     car_camera.translation = Vec3::new(lerped_position.x, 30.0, lerped_position.z);
-    car_camera.rotation = car_camera.looking_at(car.single().translation(), Vec3::Y).rotation;
+    car_camera.rotation = car_camera
+        .looking_at(car.single().translation(), Vec3::Y)
+        .rotation;
 }
 
-#[derive(Event, Default)]
-struct AddForceToCar {
+#[derive(Event)]
+struct AddForce {
     force: Vec3,
     point: Vec3,
+    entity: Entity,
 }
 
 fn suspension_force_calculations(
-    tires: Query<&GlobalTransform, With<Tire>>,
-    car: Query<(&Velocity, &Transform), With<Car>>,
+    tires: Query<(&GlobalTransform, &Parent), With<Tire>>,
+    car: Query<(Entity, &Velocity, &Transform), With<Drivable>>,
     rapier_context: Res<RapierContext>,
-    mut ev_add_force_to_car: EventWriter<AddForceToCar>,
+    mut add_forces: EventWriter<AddForce>,
 ) {
-    let (car_velocity, car_transform) = car.single();
-    for tire_transform in &tires {
+    for (tire_transform, parent) in &tires {
+        let (parent_entity, parent_velocity, parent_transform) = car.get(parent.get()).unwrap();
         let hit = rapier_context.cast_ray(
             tire_transform.translation(),
             tire_transform.down(),
@@ -123,14 +130,17 @@ fn suspension_force_calculations(
         );
         if hit.is_some() {
             let spring_direction = tire_transform.up();
-            let tire_velocity = car_velocity
-                .linear_velocity_at_point(tire_transform.translation(), car_transform.translation);
+            let tire_velocity = parent_velocity.linear_velocity_at_point(
+                tire_transform.translation(),
+                parent_transform.translation,
+            );
             let offset = 0.5 - hit.unwrap().1;
             let velocity = spring_direction.dot(tire_velocity);
             let force = (offset * 100.0) - (velocity * 35.0);
-            ev_add_force_to_car.send(AddForceToCar {
+            add_forces.send(AddForce {
                 force: spring_direction * force,
                 point: tire_transform.translation(),
+                entity: parent_entity,
             });
         }
     }
@@ -160,25 +170,28 @@ fn lookup_power(velocity: Velocity) -> f32 {
 
 fn calculate_tire_acceleration_and_braking_forces(
     keys: Res<Input<KeyCode>>,
-    tires: Query<(&GlobalTransform, &Tire)>,
-    car: Query<&Velocity, With<Car>>,
-    mut ev_add_force_to_car: EventWriter<AddForceToCar>,
+    tires: Query<(&GlobalTransform, &Parent, &Tire)>,
+    car: Query<(Entity, &Velocity), With<Drivable>>,
+    mut add_forces: EventWriter<AddForce>,
 ) {
-    for (tire_transform, tire) in &tires {
+    for (tire_transform, parent, tire) in &tires {
+        let (parent_entity, parent_velocity) = car.get(parent.get()).unwrap();
         let force_at_tire = tire_transform
             .compute_transform()
             .rotation
-            .mul_vec3(Vec3::new(lookup_power(*car.single()), 0.0, 0.0));
+            .mul_vec3(Vec3::new(lookup_power(*parent_velocity), 0.0, 0.0));
         if tire_transform.translation().y < 1.0 && tire.connected_to_engine {
             if keys.pressed(KeyCode::W) {
-                ev_add_force_to_car.send(AddForceToCar {
+                add_forces.send(AddForce {
                     force: force_at_tire,
                     point: tire_transform.translation(),
+                    entity: parent_entity,
                 });
             } else if keys.pressed(KeyCode::S) {
-                ev_add_force_to_car.send(AddForceToCar {
+                add_forces.send(AddForce {
                     force: -force_at_tire,
                     point: tire_transform.translation(),
+                    entity: parent_entity,
                 });
             }
         }
@@ -201,51 +214,66 @@ fn turn_tires(keys: Res<Input<KeyCode>>, mut tires: Query<(&mut Transform, &Tire
 }
 
 fn calculate_tire_turning_forces(
-    car: Query<(&Transform, &Velocity, &ReadMassProperties), With<Car>>,
-    tires: Query<&GlobalTransform, With<Tire>>,
-    mut ev_add_force_to_car: EventWriter<AddForceToCar>,
+    car: Query<(Entity, &Transform, &Velocity, &ReadMassProperties), With<Drivable>>,
+    tires: Query<(&GlobalTransform, &Parent), With<Tire>>,
+    mut add_forces: EventWriter<AddForce>,
 ) {
     let tire_grip_strength = 0.7;
-    let (car_transform, car_velocity, ReadMassProperties(car_mass)) = car.single();
-    for tire_transform in &tires {
+
+    for (tire_transform, parent) in &tires {
+        let (parent_entity, parent_transform, parent_velocity, ReadMassProperties(car_mass)) =
+            car.get(parent.get()).unwrap();
         if tire_transform.compute_transform().translation.y < 1.0 {
             let steering_direction = tire_transform.compute_transform().forward();
-            let tire_velocity = car_velocity
-                .linear_velocity_at_point(tire_transform.translation(), car_transform.translation);
+            let tire_velocity = parent_velocity.linear_velocity_at_point(
+                tire_transform.translation(),
+                parent_transform.translation,
+            );
             let steering_velocity = steering_direction.dot(tire_velocity);
             let desired_velocity_change = -steering_velocity * tire_grip_strength;
             let desired_acceleration = desired_velocity_change * 60.0;
-            ev_add_force_to_car.send(AddForceToCar {
-                force: steering_direction * desired_acceleration *( car_mass.mass / 4.0),
+            add_forces.send(AddForce {
+                force: steering_direction * desired_acceleration * (car_mass.mass / 4.0),
                 point: tire_transform.translation(),
+                entity: parent_entity,
             });
         }
     }
 }
 
-fn sum_all_forces_on_car(
-    mut ev_add_force_to_car: EventReader<AddForceToCar>,
-    mut car: Query<(&mut ExternalForce, &Transform), With<Car>>,
+fn sum_all_forces(
+    mut add_forces: EventReader<AddForce>,
+    mut drivables: Query<(Entity, &Transform, &mut ExternalForce), With<Drivable>>,
 ) {
-    // we need to calculate one final linear force and angular torque to apply to the car
-    let mut final_force = ExternalForce::default();
-
-    let (mut external_force, car_transform) = car.single_mut();
-    for AddForceToCar { force, point } in ev_add_force_to_car.iter() {
-        let force_on_car = ExternalForce::at_point(*force, *point, car_transform.translation);
-        final_force += force_on_car;
+    let mut final_forces = HashMap::new();
+    for (entity, _, _) in &drivables {
+        final_forces.insert(entity, ExternalForce::default());
     }
 
-    // set the external forces on the car to the calculated final_force
-    external_force.force = final_force.force;
-    external_force.torque = final_force.torque;
+    for AddForce {
+        force,
+        point,
+        entity,
+    } in add_forces.iter()
+    {
+        let (_, transform, _) = drivables.get(entity.clone()).unwrap();
+        let force_on_entity = ExternalForce::at_point(*force, *point, transform.translation);
+        *final_forces.get_mut(entity).unwrap() += force_on_entity;
+    }
+
+    // set the external forces on the entity to the calculated final_force
+    for (entity, _, mut external_force) in &mut drivables {
+        let final_force = final_forces.get(&entity).unwrap();
+        external_force.force = final_force.force;
+        external_force.torque = final_force.torque;
+    }
 }
 
-fn draw_tire_force_gizmos(mut ev_add_force_to_car: EventReader<AddForceToCar>, mut gizmos: Gizmos) {
-    let scale_factor = 0.04;
-    for AddForceToCar { force, point } in ev_add_force_to_car.iter() {
-        gizmos.ray(*point, *force * scale_factor, Color::BLUE);
-    }
+fn draw_tire_force_gizmos(mut add_forces: EventReader<AddForce>, mut gizmos: Gizmos) {
+    // let scale_factor = 0.04;
+    // for AddForce { force, point } in add_forces.iter() {
+    //     gizmos.ray(*point, *force * scale_factor, Color::BLUE);
+    // }
 }
 
 fn draw_tire_gizmos(mut gizmos: Gizmos, tires: Query<(&GlobalTransform, &Tire)>) {
