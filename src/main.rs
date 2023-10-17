@@ -4,10 +4,6 @@ use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
 use bevy::window::PrimaryWindow;
-use bevy::{
-    reflect::{TypePath, TypeUuid},
-    render::render_resource::{AsBindGroup, ShaderRef},
-};
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
 
@@ -22,7 +18,6 @@ fn main() {
             DefaultPlugins,
             RapierPhysicsPlugin::<NoUserData>::default(),
             RapierDebugRenderPlugin::default(),
-            MaterialPlugin::<CustomMaterial>::default(),
         ))
         .add_plugins((
             LogDiagnosticsPlugin::default(),
@@ -33,30 +28,6 @@ fn main() {
         .add_systems(Startup, setup_physics)
         .add_systems(Update, cast_ray)
         .run();
-}
-
-/// The Material trait is very configurable, but comes with sensible defaults for all methods.
-/// You only need to implement functions for features that need non-default behavior. See the Material api docs for details!
-impl Material for CustomMaterial {
-    fn fragment_shader() -> ShaderRef {
-        "shaders/custom_material.wgsl".into()
-    }
-
-    fn alpha_mode(&self) -> AlphaMode {
-        self.alpha_mode
-    }
-}
-
-// This is the struct that will be passed to your shader
-#[derive(AsBindGroup, TypeUuid, TypePath, Debug, Clone)]
-#[uuid = "f690fdae-d598-45ab-8225-97e2a3f056e0"]
-pub struct CustomMaterial {
-    #[uniform(0)]
-    color: Color,
-    #[texture(1)]
-    #[sampler(2)]
-    color_texture: Option<Handle<Image>>,
-    alpha_mode: AlphaMode,
 }
 
 #[derive(Component, Default, Reflect)]
@@ -93,7 +64,7 @@ pub fn setup_physics(
     mut commands: Commands,
     asset_server: Res<AssetServer>,
     mut meshes: ResMut<Assets<Mesh>>,
-    mut materials: ResMut<Assets<CustomMaterial>>,
+    mut materials: ResMut<Assets<StandardMaterial>>,
 ) {
     // camera
     commands.spawn((
@@ -106,22 +77,23 @@ pub fn setup_physics(
     ));
 
     // ground
-    let ground_size = 200.1;
+    let ground_size = 100.0;
     let ground_height = 0.1;
 
+    let texture_handle = asset_server.load("floor.png");
     commands.spawn((
-        // TransformBundle::from(Transform::from_xyz(0.0, -ground_height, 0.0)),
         Collider::cuboid(ground_size, ground_height, ground_size),
         Name::from("Floor"),
         MaterialMeshBundle {
             mesh: meshes.add(Mesh::from(shape::Plane {
-                size: 200.0,
+                size: ground_size * 2.0,
                 subdivisions: 0,
             })),
-            material: materials.add(CustomMaterial {
-                color: default(),
-                color_texture: Some(asset_server.load("models/floor.png")),
-                alpha_mode: AlphaMode::Blend,
+            material: materials.add(StandardMaterial {
+                base_color_texture: Some(texture_handle.clone()),
+                // TODO: remove this unlit, then add a sun and headlights
+                unlit: true,
+                ..default()
             }),
             transform: Transform::from_xyz(0.0, -ground_height, 0.0),
             global_transform: default(),
