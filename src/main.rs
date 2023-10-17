@@ -3,7 +3,6 @@ mod car;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
-use bevy::window::PrimaryWindow;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
 
@@ -26,7 +25,6 @@ fn main() {
         ))
         .add_plugins(car::CarPlugin)
         .add_systems(Startup, setup_physics)
-        .add_systems(Update, cast_ray)
         .run();
 }
 
@@ -114,59 +112,24 @@ pub fn setup_physics(
         .insert(ImpulseJoint::new(car_entity, joint));
 
     // add boxes to run into
+    let mut box_parent_entity = commands.spawn((SpatialBundle::default(), Name::from("Obstacles")));
     let w = 10;
     let h = 5;
     for x in (-w / 2)..(w / 2) {
         for y in 0..h {
-            commands.spawn((
-                TransformBundle::from(Transform::from_xyz(
-                    10.0,
-                    (y as f32) * 1.5,
-                    (x as f32) * 1.5,
-                )),
-                RigidBody::Dynamic,
-                Collider::cuboid(0.5, 0.5, 0.5),
-                Friction::coefficient(0.5),
-                Name::from(format!("Box ({},{})", x, y)),
-            ));
-        }
-    }
-}
-
-fn cast_ray(
-    mut commands: Commands,
-    windows: Query<&Window, With<PrimaryWindow>>,
-    rapier_context: Res<RapierContext>,
-    cameras: Query<(&Camera, &GlobalTransform)>,
-) {
-    let window = windows.single();
-
-    let Some(cursor_position) = window.cursor_position() else {
-        return;
-    };
-
-    // We will color in read the colliders hovered by the mouse.
-    for (camera, camera_transform) in &cameras {
-        // First, compute a ray from the mouse position.
-        let Some(ray) = camera.viewport_to_world(camera_transform, cursor_position) else {
-            return;
-        };
-
-        // Then cast the ray.
-        let hit = rapier_context.cast_ray(
-            ray.origin,
-            ray.direction,
-            f32::MAX,
-            true,
-            QueryFilter::only_dynamic(),
-        );
-
-        if let Some((entity, _toi)) = hit {
-            // Color in blue the entity we just hit.
-            // Because of the query filter, only colliders attached to a dynamic body
-            // will get an event.
-            let color = Color::BLUE;
-            commands.entity(entity).insert(ColliderDebugColor(color));
+            box_parent_entity.with_children(|child_builder| {
+                child_builder.spawn((
+                    TransformBundle::from(Transform::from_xyz(
+                        10.0,
+                        (y as f32) * 1.5,
+                        (x as f32) * 1.5,
+                    )),
+                    RigidBody::Dynamic,
+                    Collider::cuboid(0.5, 0.5, 0.5),
+                    Friction::coefficient(0.5),
+                    Name::from(format!("Box ({},{})", x, y)),
+                ));
+            });
         }
     }
 }
