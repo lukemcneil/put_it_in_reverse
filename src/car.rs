@@ -270,10 +270,15 @@ fn sum_all_forces(
 }
 
 fn draw_tire_force_gizmos(mut add_forces: EventReader<AddForce>, mut gizmos: Gizmos) {
-    // let scale_factor = 0.04;
-    // for AddForce { force, point } in add_forces.iter() {
-    //     gizmos.ray(*point, *force * scale_factor, Color::BLUE);
-    // }
+    let scale_factor = 0.04;
+    for AddForce {
+        force,
+        point,
+        entity: _,
+    } in add_forces.iter()
+    {
+        gizmos.ray(*point, *force * scale_factor, Color::BLUE);
+    }
 }
 
 fn draw_tire_gizmos(mut gizmos: Gizmos, tires: Query<(&GlobalTransform, &Tire)>) {
