@@ -101,41 +101,16 @@ pub fn setup_physics(
         },
     ));
 
-    // car and tires
+    // car and trailer
     let car_entity = car::spawn_car(&mut commands);
+    let trailer_entity = car::spawn_trailer(&mut commands);
+
     let joint = SphericalJointBuilder::new()
         .local_anchor1(Vec3::new(-3.5, 0.0, 0.0))
         .local_anchor2(Vec3::new(2.5, 0.0, 0.0));
     commands
-        .spawn((
-            TransformBundle::from(Transform::from_xyz(-5.0, 10.0, 0.0)),
-            RigidBody::Dynamic,
-            Collider::cuboid(2.0, 0.25, 2.0),
-            Friction::coefficient(0.5),
-            Drivable,
-            Name::from("Trailer"),
-            Velocity::default(),
-            ReadMassProperties::default(),
-            ExternalForce::default(),
-        ))
-        .with_children(|child_builder| {
-            child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-0.5, -0.25, 2.1)),
-                Tire {
-                    connected_to_engine: false,
-                    location: Location::Back,
-                },
-                Name::from("Tire Trailer Right"),
-            ));
-            child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-0.5, -0.25, -2.1)),
-                Tire {
-                    connected_to_engine: false,
-                    location: Location::Back,
-                },
-                Name::from("Tire Trailer Left"),
-            ));
-        })
+        .get_entity(trailer_entity)
+        .unwrap()
         .insert(ImpulseJoint::new(car_entity, joint));
 
     // add boxes to run into

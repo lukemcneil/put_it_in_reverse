@@ -90,6 +90,40 @@ pub fn spawn_car(commands: &mut Commands) -> Entity {
         .id()
 }
 
+pub fn spawn_trailer(commands: &mut Commands) -> Entity {
+    commands
+        .spawn((
+            TransformBundle::from(Transform::from_xyz(-5.0, 10.0, 0.0)),
+            RigidBody::Dynamic,
+            Collider::cuboid(2.0, 0.25, 2.0),
+            Friction::coefficient(0.5),
+            Drivable,
+            Name::from("Trailer"),
+            Velocity::default(),
+            ReadMassProperties::default(),
+            ExternalForce::default(),
+        ))
+        .with_children(|child_builder| {
+            child_builder.spawn((
+                TransformBundle::from(Transform::from_xyz(-0.5, -0.25, 2.1)),
+                Tire {
+                    connected_to_engine: false,
+                    location: Location::Back,
+                },
+                Name::from("Tire Trailer Right"),
+            ));
+            child_builder.spawn((
+                TransformBundle::from(Transform::from_xyz(-0.5, -0.25, -2.1)),
+                Tire {
+                    connected_to_engine: false,
+                    location: Location::Back,
+                },
+                Name::from("Tire Trailer Left"),
+            ));
+        })
+        .id()
+}
+
 fn camera_follow_car(
     mut camera: Query<&mut Transform, With<CarCamera>>,
     car_camera_desired_position: Query<&GlobalTransform, With<CameraPosition>>,
