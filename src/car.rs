@@ -125,7 +125,7 @@ fn suspension_force_calculations(
             let spring_direction = tire_transform.up();
             let tire_velocity = car_velocity
                 .linear_velocity_at_point(tire_transform.translation(), car_transform.translation);
-            let offset = 1.5 - hit.unwrap().1;
+            let offset = 0.5 - hit.unwrap().1;
             let velocity = spring_direction.dot(tire_velocity);
             let force = (offset * 100.0) - (velocity * 35.0);
             ev_add_force_to_car.send(AddForceToCar {
@@ -205,7 +205,7 @@ fn calculate_tire_turning_forces(
     tires: Query<&GlobalTransform, With<Tire>>,
     mut ev_add_force_to_car: EventWriter<AddForceToCar>,
 ) {
-    let tire_grip_strength = 0.4;
+    let tire_grip_strength = 0.7;
     let (car_transform, car_velocity, ReadMassProperties(car_mass)) = car.single();
     for tire_transform in &tires {
         if tire_transform.compute_transform().translation.y < 1.0 {
@@ -214,9 +214,9 @@ fn calculate_tire_turning_forces(
                 .linear_velocity_at_point(tire_transform.translation(), car_transform.translation);
             let steering_velocity = steering_direction.dot(tire_velocity);
             let desired_velocity_change = -steering_velocity * tire_grip_strength;
-            let desired_acceleration = desired_velocity_change * 5.0;
+            let desired_acceleration = desired_velocity_change * 60.0;
             ev_add_force_to_car.send(AddForceToCar {
-                force: steering_direction * desired_acceleration * car_mass.mass,
+                force: steering_direction * desired_acceleration *( car_mass.mass / 4.0),
                 point: tire_transform.translation(),
             });
         }
