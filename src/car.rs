@@ -86,7 +86,7 @@ pub fn spawn_car(commands: &mut Commands, vehicle_configs: Res<VehicleConfigs>) 
             Velocity::default(),
             ExternalForce::default(),
             Name::from("Car"),
-            Friction::coefficient(0.0),
+            Friction::coefficient(1.0),
         ))
         .with_children(|child_builder| {
             child_builder.spawn((
@@ -99,6 +99,7 @@ pub fn spawn_car(commands: &mut Commands, vehicle_configs: Res<VehicleConfigs>) 
                     connected_to_engine: true,
                     location: Location::Front,
                 },
+                AdditionalMassProperties::Mass(5.0),
                 Name::from("Tire Front Right"),
             ));
 
@@ -112,6 +113,7 @@ pub fn spawn_car(commands: &mut Commands, vehicle_configs: Res<VehicleConfigs>) 
                     connected_to_engine: true,
                     location: Location::Front,
                 },
+                AdditionalMassProperties::Mass(5.0),
                 Name::from("Tire Front Left"),
             ));
 
@@ -125,6 +127,7 @@ pub fn spawn_car(commands: &mut Commands, vehicle_configs: Res<VehicleConfigs>) 
                     connected_to_engine: false,
                     location: Location::Back,
                 },
+                AdditionalMassProperties::Mass(5.0),
                 Name::from("Tire Back Right"),
             ));
 
@@ -138,6 +141,7 @@ pub fn spawn_car(commands: &mut Commands, vehicle_configs: Res<VehicleConfigs>) 
                     connected_to_engine: false,
                     location: Location::Back,
                 },
+                AdditionalMassProperties::Mass(5.0),
                 Name::from("Tire Back Left"),
             ));
 
@@ -237,6 +241,7 @@ fn calculate_tire_acceleration_and_braking_forces(
     car: Query<(Entity, &Velocity, &Transform), With<Drivable>>,
     vehicle_configs: Res<VehicleConfigs>,
     mut add_forces: EventWriter<AddForce>,
+    rapier_context: Res<RapierContext>,
 ) {
     let vehicle_config = vehicle_configs.configs.get("F150").unwrap();
     let coefficient_of_friction = 0.012;
@@ -254,40 +259,48 @@ fn calculate_tire_acceleration_and_braking_forces(
                 0.0,
                 0.0,
             ));
-        if tire_transform.translation().y
-            < vehicle_config.height + vehicle_config.spring_offset * 2.0
-            && tire.connected_to_engine
-        {
-            if keys.pressed(KeyCode::W) {
-                add_forces.send(AddForce {
-                    force: force_at_tire,
-                    point: tire_transform.translation(),
-                    entity: parent_entity,
-                });
-            } else if keys.pressed(KeyCode::S) {
-                add_forces.send(AddForce {
-                    force: -force_at_tire / 3.0,
-                    point: tire_transform.translation(),
-                    entity: parent_entity,
-                });
-            } else if parent_velocity.linvel.x.abs() > 0.0 || parent_velocity.linvel.z.abs() > 0.0 {
-                let mut negative_check = -1.0;
-                if parent_velocity.linvel.dot(parent_transform.right()) < 0.0 {
-                    negative_check = 1.0;
+        let hit = rapier_context.cast_ray(
+            tire_transform.translation(),
+            tire_transform.down(),
+            1.5,
+            false,
+            QueryFilter::only_fixed(),
+        );
+        if hit.is_some() {
+            if hit.unwrap().1 < vehicle_config.spring_offset * 1.25 && tire.connected_to_engine {
+                if keys.pressed(KeyCode::W) {
+                    add_forces.send(AddForce {
+                        force: force_at_tire,
+                        point: tire_transform.translation(),
+                        entity: parent_entity,
+                    });
+                } else if keys.pressed(KeyCode::S) {
+                    add_forces.send(AddForce {
+                        force: -force_at_tire / 3.0,
+                        point: tire_transform.translation(),
+                        entity: parent_entity,
+                    });
+                } else if parent_velocity.linvel.x.abs() > 0.0
+                    || parent_velocity.linvel.z.abs() > 0.0
+                {
+                    let mut negative_check = -1.0;
+                    if parent_velocity.linvel.dot(parent_transform.right()) < 0.0 {
+                        negative_check = 1.0;
+                    }
+                    add_forces.send(AddForce {
+                        force: negative_check
+                            * tire_transform
+                                .compute_transform()
+                                .rotation
+                                .mul_vec3(Vec3::new(
+                                    (vehicle_config.weight / 4.0) * coefficient_of_friction * 9.81,
+                                    0.0,
+                                    0.0,
+                                )),
+                        point: tire_transform.translation(),
+                        entity: parent_entity,
+                    });
                 }
-                add_forces.send(AddForce {
-                    force: negative_check
-                        * tire_transform
-                            .compute_transform()
-                            .rotation
-                            .mul_vec3(Vec3::new(
-                                (vehicle_config.weight / 4.0) * coefficient_of_friction * 9.81,
-                                0.0,
-                                0.0,
-                            )),
-                    point: tire_transform.translation(),
-                    entity: parent_entity,
-                });
             }
         }
     }
@@ -305,13 +318,13 @@ fn turn_tires(
             if keys.pressed(KeyCode::D) {
                 tire_transform.rotation = tire_transform
                     .rotation
-                    .lerp(Quat::from_axis_angle(Vec3::Y, -turning_radius), 0.001);
+                    .lerp(Quat::from_axis_angle(Vec3::Y, -turning_radius), 0.002);
             } else if keys.pressed(KeyCode::A) {
                 tire_transform.rotation = tire_transform
                     .rotation
-                    .lerp(Quat::from_axis_angle(Vec3::Y, turning_radius), 0.001);
+                    .lerp(Quat::from_axis_angle(Vec3::Y, turning_radius), 0.002);
             } else {
-                tire_transform.rotation = tire_transform.rotation.lerp(Quat::IDENTITY, 0.01);
+                tire_transform.rotation = tire_transform.rotation.lerp(Quat::IDENTITY, 0.1);
             }
         }
     }
@@ -322,27 +335,37 @@ fn calculate_tire_turning_forces(
     tires: Query<(&GlobalTransform, &Parent), With<Tire>>,
     mut add_forces: EventWriter<AddForce>,
     vehicle_configs: Res<VehicleConfigs>,
+    rapier_context: Res<RapierContext>,
 ) {
     let vehicle_config = vehicle_configs.configs.get("F150").unwrap();
     let tire_grip_strength = 0.7;
     for (tire_transform, parent) in &tires {
         let (parent_entity, parent_transform, parent_velocity) = car.get(parent.get()).unwrap();
-        if tire_transform.compute_transform().translation.y
-            < vehicle_config.height + vehicle_config.spring_offset * 2.0
-        {
-            let steering_direction = tire_transform.compute_transform().forward();
-            let tire_velocity = parent_velocity.linear_velocity_at_point(
-                tire_transform.translation(),
-                parent_transform.translation,
-            );
-            let steering_velocity = steering_direction.dot(tire_velocity);
-            let desired_velocity_change = -steering_velocity * tire_grip_strength;
-            let desired_acceleration = desired_velocity_change * 60.0;
-            add_forces.send(AddForce {
-                force: steering_direction * desired_acceleration * (vehicle_config.weight / 4.0),
-                point: tire_transform.translation(),
-                entity: parent_entity,
-            });
+        let hit = rapier_context.cast_ray(
+            tire_transform.translation(),
+            tire_transform.down(),
+            1.5,
+            false,
+            QueryFilter::only_fixed(),
+        );
+        if hit.is_some() {
+            if hit.unwrap().1 < vehicle_config.spring_offset * 1.25 {
+                let steering_direction = tire_transform.compute_transform().forward();
+                let tire_velocity = parent_velocity.linear_velocity_at_point(
+                    tire_transform.translation(),
+                    parent_transform.translation,
+                );
+                let steering_velocity = steering_direction.dot(tire_velocity);
+                let desired_velocity_change = -steering_velocity * tire_grip_strength;
+                let desired_acceleration = desired_velocity_change * 60.0;
+                add_forces.send(AddForce {
+                    force: steering_direction
+                        * desired_acceleration
+                        * (vehicle_config.weight / 4.0),
+                    point: tire_transform.translation(),
+                    entity: parent_entity,
+                });
+            }
         }
     }
 }
