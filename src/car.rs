@@ -1,3 +1,5 @@
+use std::f32::consts::PI;
+
 use bevy::{prelude::*, utils::HashMap};
 use bevy_rapier3d::prelude::*;
 
@@ -15,7 +17,7 @@ impl Plugin for CarPlugin {
                     calculate_tire_suspension_forces,
                     calculate_tire_friction,
                     reset_car,
-                    (sum_all_forces, draw_tire_force_gizmos)
+                    (sum_all_forces)
                         .after(calculate_tire_acceleration_and_braking_forces)
                         .after(calculate_tire_turning_forces)
                         .after(calculate_tire_suspension_forces)
@@ -125,7 +127,7 @@ pub fn spawn_car(
                 })),
                 material: materials.add(StandardMaterial {
                     base_color_texture: Some(texture_handle.clone()),
-                    unlit: true,
+                    unlit: false,
                     ..default()
                 }),
                 transform: Transform::from_xyz(
@@ -190,6 +192,33 @@ pub fn spawn_car(
                 CameraPosition,
                 Name::from("Camera Desired Position"),
             ));
+
+            child_builder.spawn(SpotLightBundle {
+                spot_light: SpotLight {
+                    color: Color::rgb(225.0 / 255.0, 208.0 / 255.0, 182.0 / 255.0),
+                    intensity: 10000.0,
+                    range: 200.0,
+                    shadows_enabled: true,
+                    outer_angle: 0.5,
+                    ..default()
+                },
+                transform: Transform::from_xyz(vehicle_config.length, 0.0, -vehicle_config.width)
+                    .with_rotation(Quat::from_axis_angle(Vec3::Y, -PI / 2.0)),
+                ..default()
+            });
+            child_builder.spawn(SpotLightBundle {
+                spot_light: SpotLight {
+                    color: Color::rgb(225.0 / 255.0, 208.0 / 255.0, 182.0 / 255.0),
+                    intensity: 10000.0,
+                    range: 200.0,
+                    shadows_enabled: true,
+                    outer_angle: 0.5,
+                    ..default()
+                },
+                transform: Transform::from_xyz(vehicle_config.length, 0.0, vehicle_config.width)
+                    .with_rotation(Quat::from_axis_angle(Vec3::Y, -PI / 2.0)),
+                ..default()
+            });
         })
         .id()
 }
@@ -225,7 +254,7 @@ pub fn spawn_trailer(
                 })),
                 material: materials.add(StandardMaterial {
                     base_color_texture: Some(texture_handle.clone()),
-                    unlit: true,
+                    unlit: false,
                     ..default()
                 }),
                 transform: Transform::from_xyz(
@@ -558,7 +587,7 @@ fn sum_all_forces(
     }
 }
 
-fn draw_tire_force_gizmos(mut add_forces: EventReader<AddForce>, mut gizmos: Gizmos) {
+fn _draw_tire_force_gizmos(mut add_forces: EventReader<AddForce>, mut gizmos: Gizmos) {
     let scale_factor = 0.04;
     for AddForce {
         force,

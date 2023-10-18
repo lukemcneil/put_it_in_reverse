@@ -21,7 +21,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             RapierPhysicsPlugin::<NoUserData>::default(),
-            RapierDebugRenderPlugin::default(),
+            // RapierDebugRenderPlugin::default(),
         ))
         .add_plugins((
             LogDiagnosticsPlugin::default(),
@@ -60,6 +60,19 @@ pub fn setup_physics(
 
     let floor_texture_handle = asset_server.load("floor.png");
     commands.spawn((
+        DirectionalLightBundle {
+            transform: Transform::from_xyz(50.0, 100.0, 70.0).looking_at(Vec3::ZERO, Vec3::Y),
+            directional_light: DirectionalLight {
+                color: Color::rgb(31.0 / 255.0, 33.0 / 255.0, 45.0 / 255.0),
+                illuminance: 20000.0,
+                shadows_enabled: true,
+                ..default()
+            },
+            ..default()
+        },
+        Name::from("Sun"),
+    ));
+    commands.spawn((
         Collider::cuboid(ground_size, ground_height, ground_size),
         Name::from("Floor"),
         MaterialMeshBundle {
@@ -69,8 +82,7 @@ pub fn setup_physics(
             })),
             material: materials.add(StandardMaterial {
                 base_color_texture: Some(floor_texture_handle.clone()),
-                // TODO: remove this unlit, then add a sun and headlights
-                unlit: true,
+                unlit: false,
                 ..default()
             }),
             transform: Transform::from_xyz(0.0, -ground_height, 0.0),
@@ -78,8 +90,8 @@ pub fn setup_physics(
             ..default()
         },
     ));
-    let mut ramp_tranform = Transform::from_xyz(50.0, -5.0, 0.0);
-    ramp_tranform.rotate_z(PI / 4.0);
+    let mut ramp_tranform = Transform::from_xyz(50.0, -15.0, 0.0);
+    ramp_tranform.rotate_z(PI / 8.0);
     commands.spawn((
         Collider::cuboid(20.0, 20.0, 20.0),
         Name::from("Ramp"),
@@ -87,7 +99,7 @@ pub fn setup_physics(
             mesh: meshes.add(Mesh::from(shape::Cube { size: 20.0 * 2.0 })),
             material: materials.add(StandardMaterial {
                 base_color_texture: Some(floor_texture_handle.clone()),
-                unlit: true,
+                unlit: false,
                 ..default()
             }),
             transform: ramp_tranform,
@@ -132,11 +144,16 @@ pub fn setup_physics(
         for y in 0..h {
             box_parent_entity.with_children(|child_builder| {
                 child_builder.spawn((
-                    TransformBundle::from(Transform::from_xyz(
-                        10.0,
-                        (y as f32) * 1.5,
-                        (x as f32) * 1.5,
-                    )),
+                    MaterialMeshBundle {
+                        mesh: meshes.add(Mesh::from(shape::Cube { size: 0.5 * 2.0 })),
+                        material: materials.add(StandardMaterial {
+                            base_color_texture: Some(floor_texture_handle.clone()),
+                            unlit: false,
+                            ..default()
+                        }),
+                        transform: Transform::from_xyz(15.0, (y as f32) * 1.5, (x as f32) * 1.5),
+                        ..default()
+                    },
                     RigidBody::Dynamic,
                     Collider::cuboid(0.5, 0.5, 0.5),
                     Friction::coefficient(0.5),
