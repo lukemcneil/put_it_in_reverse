@@ -1,6 +1,6 @@
 use std::f32::consts::PI;
 
-use bevy::{prelude::*, utils::HashMap};
+use bevy::{input::gamepad::GamepadEvent, prelude::*, utils::HashMap};
 use bevy_rapier3d::prelude::*;
 
 pub struct CarPlugin;
@@ -131,7 +131,7 @@ pub fn spawn_car(
                     ..default()
                 }),
                 transform: Transform::from_xyz(
-                    vehicle_config.length - vehicle_config.anchor_point.x,
+                    vehicle_config.length + vehicle_config.anchor_point.x,
                     10.,
                     0.,
                 ),
@@ -286,7 +286,7 @@ pub fn spawn_trailer(
                     ..default()
                 }),
                 transform: Transform::from_xyz(
-                    vehicle_config.length - vehicle_config.anchor_point.x,
+                    -vehicle_config.length - vehicle_config.anchor_point.x,
                     10.0,
                     0.0,
                 ),
@@ -372,15 +372,43 @@ struct AddForce {
 
 fn reset_car(
     keys: Res<Input<KeyCode>>,
-    mut drivables: Query<(&mut Transform, &VehicleConfig, &mut Velocity), With<Drivable>>,
+    mut drivables: Query<
+        (&mut Transform, &VehicleConfig, &mut Velocity, Option<&Car>),
+        With<Drivable>,
+    >,
+    mut gamepad_evr: EventReader<GamepadEvent>,
 ) {
-    for (mut drivable_transform, drivable_config, mut drivable_velocity) in &mut drivables {
+    let mut should_respawn = keys.just_pressed(KeyCode::R);
+    for ev in gamepad_evr.iter() {
+        match ev {
+            GamepadEvent::Button(button_ev) => {
+                if button_ev.value == 0.0 {
+                    continue;
+                }
+                match button_ev.button_type {
+                    GamepadButtonType::Mode => {
+                        should_respawn = true;
+                    }
+                    _ => (),
+                }
+            }
+            _ => (),
+        }
+    }
+
+    for (mut drivable_transform, drivable_config, mut drivable_velocity, maybe_car) in
+        &mut drivables
+    {
         let reseted_tranform = Transform::from_xyz(
-            drivable_config.length - drivable_config.anchor_point.x,
+            match maybe_car {
+                Some(_) => drivable_config.length + drivable_config.anchor_point.x,
+                None => -drivable_config.length - drivable_config.anchor_point.x,
+            },
             10.,
             0.,
         );
-        if keys.just_pressed(KeyCode::R) {
+
+        if should_respawn {
             drivable_velocity.linvel = Vec3::ZERO;
             drivable_velocity.angvel = Vec3::ZERO;
             drivable_transform.translation = reseted_tranform.translation;
@@ -445,6 +473,8 @@ fn calculate_tire_acceleration_and_braking_forces(
     drivables: Query<(Entity, &Velocity, &VehicleConfig), With<Drivable>>,
     rapier_context: Res<RapierContext>,
     mut add_forces: EventWriter<AddForce>,
+    axes: Res<Axis<GamepadAxis>>,
+    gamepads: Res<Gamepads>,
 ) {
     for (tire_transform, parent, tire) in &tires {
         let (parent_entity, parent_velocity, parent_config) = drivables.get(parent.get()).unwrap();
@@ -468,19 +498,29 @@ fn calculate_tire_acceleration_and_braking_forces(
             QueryFilter::only_fixed(),
         );
         if hit.is_some() && tire.connected_to_engine {
-            if keys.pressed(KeyCode::W) {
-                add_forces.send(AddForce {
-                    force: force_at_tire,
-                    point: tire_transform.translation(),
-                    entity: parent_entity,
-                });
+            let mut multiplier = if keys.pressed(KeyCode::W) {
+                1.0
             } else if keys.pressed(KeyCode::S) {
-                add_forces.send(AddForce {
-                    force: -force_at_tire,
-                    point: tire_transform.translation(),
-                    entity: parent_entity,
-                });
+                -1.0
+            } else {
+                0.0
+            };
+
+            for gamepad in gamepads.iter() {
+                let axis_ly = GamepadAxis {
+                    gamepad,
+                    axis_type: GamepadAxisType::LeftStickY,
+                };
+                if let Some(y) = axes.get(axis_ly) {
+                    multiplier = y;
+                }
             }
+
+            add_forces.send(AddForce {
+                force: multiplier * force_at_tire,
+                point: tire_transform.translation(),
+                entity: parent_entity,
+            });
         }
     }
 }
@@ -549,18 +589,34 @@ fn turn_tires(
     drivables: Query<&VehicleConfig, With<Drivable>>,
     keys: Res<Input<KeyCode>>,
     mut tires: Query<(&mut Transform, &Tire, &Parent)>,
+    axes: Res<Axis<GamepadAxis>>,
+    gamepads: Res<Gamepads>,
 ) {
     for (mut tire_transform, tire, parent) in &mut tires {
         let parent_config = drivables.get(parent.get()).unwrap();
-        if let TireLocation::Front = tire.location {
-            if keys.pressed(KeyCode::D) {
-                tire_transform.rotation =
-                    Quat::from_axis_angle(Vec3::Y, -parent_config.turn_radius);
-            } else if keys.pressed(KeyCode::A) {
-                tire_transform.rotation = Quat::from_axis_angle(Vec3::Y, parent_config.turn_radius);
-            } else {
-                tire_transform.rotation = Quat::IDENTITY;
+        let mut multiplier = if keys.pressed(KeyCode::D) {
+            -1.0
+        } else if keys.pressed(KeyCode::A) {
+            1.0
+        } else {
+            0.0
+        };
+
+        for gamepad in gamepads.iter() {
+            let axis_lx = GamepadAxis {
+                gamepad,
+                axis_type: GamepadAxisType::LeftStickX,
+            };
+            if let Some(x) = axes.get(axis_lx) {
+                if x != 0.0 {
+                    multiplier = -x;
+                }
             }
+        }
+
+        if let TireLocation::Front = tire.location {
+            tire_transform.rotation =
+                Quat::from_axis_angle(Vec3::Y, multiplier * parent_config.turn_radius);
         }
     }
 }
