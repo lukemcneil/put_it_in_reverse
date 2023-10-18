@@ -159,12 +159,13 @@ struct AddForce {
 
 fn calculate_tire_suspension_forces(
     tires: Query<(&GlobalTransform, &Parent), With<Tire>>,
-    car: Query<(Entity, &Velocity, &Transform), With<Drivable>>,
+    drivables: Query<(Entity, &Velocity, &Transform), With<Drivable>>,
     rapier_context: Res<RapierContext>,
     mut add_forces: EventWriter<AddForce>,
 ) {
     for (tire_transform, parent) in &tires {
-        let (parent_entity, parent_velocity, parent_transform) = car.get(parent.get()).unwrap();
+        let (parent_entity, parent_velocity, parent_transform) =
+            drivables.get(parent.get()).unwrap();
         let hit = rapier_context.cast_ray(
             tire_transform.translation(),
             tire_transform.down(),
@@ -172,13 +173,13 @@ fn calculate_tire_suspension_forces(
             false,
             QueryFilter::only_fixed(),
         );
-        if hit.is_some() {
+        if let Some((_, hit_distance)) = hit {
             let spring_direction = tire_transform.up();
             let tire_velocity = parent_velocity.linear_velocity_at_point(
                 tire_transform.translation(),
                 parent_transform.translation,
             );
-            let offset = 1.5 - hit.unwrap().1;
+            let offset = 1.5 - hit_distance;
             let velocity = spring_direction.dot(tire_velocity);
             let force = (offset * 100.0) - (velocity * 10.0);
             add_forces.send(AddForce {
@@ -191,25 +192,21 @@ fn calculate_tire_suspension_forces(
 }
 
 fn lookup_power(velocity: Velocity) -> f32 {
-    let max_speed = 10.0;
+    let max_speed = 20.0;
     let max_force: f32 = 50.0;
     let speed_ratio = velocity.linvel.length() / max_speed;
-    let graph1 = -(-0.5 * speed_ratio + 0.3).log(10.0);
-    let graph2 = 1.0;
-    let graph3 = (-5.0 * speed_ratio + 6.0).log(10.0) + 0.6;
-    let mut returned_force = 0.0;
-    if speed_ratio < 0.0 {
-        returned_force = 0.5 * max_force;
+    let lookup = if speed_ratio < 0.0 {
+        0.5
     } else if speed_ratio >= 0.0 && speed_ratio < 0.4 {
-        returned_force = graph1 * max_force;
+        -(-0.5 * speed_ratio + 0.3).log(10.0)
     } else if speed_ratio >= 0.4 && speed_ratio <= 0.698 {
-        returned_force = graph2 * max_force;
+        1.0
     } else if speed_ratio > 0.698 && speed_ratio <= 1.0 {
-        returned_force = graph3 * max_force;
+        (-5.0 * speed_ratio + 6.0).log(10.0) + 0.6
     } else {
-        return returned_force;
-    }
-    return returned_force;
+        0.0
+    };
+    max_force * lookup
 }
 
 fn calculate_tire_acceleration_and_braking_forces(
