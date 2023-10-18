@@ -1,5 +1,7 @@
 mod car;
 
+use std::f32::consts::PI;
+
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
@@ -70,6 +72,23 @@ pub fn setup_physics(
                 ..default()
             }),
             transform: Transform::from_xyz(0.0, -ground_height, 0.0),
+            global_transform: default(),
+            ..default()
+        },
+    ));
+    let mut ramp_tranform = Transform::from_xyz(50.0, -5.0, 0.0);
+    ramp_tranform.rotate_z(PI / 4.0);
+    commands.spawn((
+        Collider::cuboid(20.0, 20.0, 20.0),
+        Name::from("Ramp"),
+        MaterialMeshBundle {
+            mesh: meshes.add(Mesh::from(shape::Cube { size: 20.0 * 2.0 })),
+            material: materials.add(StandardMaterial {
+                base_color_texture: Some(texture_handle.clone()),
+                unlit: true,
+                ..default()
+            }),
+            transform: ramp_tranform,
             global_transform: default(),
             ..default()
         },

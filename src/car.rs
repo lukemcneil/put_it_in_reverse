@@ -212,6 +212,7 @@ fn calculate_tire_acceleration_and_braking_forces(
     keys: Res<Input<KeyCode>>,
     tires: Query<(&GlobalTransform, &Parent, &Tire)>,
     drivables: Query<(Entity, &Velocity), With<Drivable>>,
+    rapier_context: Res<RapierContext>,
     mut add_forces: EventWriter<AddForce>,
 ) {
     for (tire_transform, parent, tire) in &tires {
@@ -220,7 +221,14 @@ fn calculate_tire_acceleration_and_braking_forces(
             .compute_transform()
             .rotation
             .mul_vec3(Vec3::new(lookup_power(*parent_velocity), 0.0, 0.0));
-        if tire_transform.translation().y < 2.0 && tire.connected_to_engine {
+        let hit = rapier_context.cast_ray(
+            tire_transform.translation(),
+            tire_transform.down(),
+            1.5,
+            false,
+            QueryFilter::only_fixed(),
+        );
+        if hit.is_some() && tire.connected_to_engine {
             if keys.pressed(KeyCode::W) {
                 add_forces.send(AddForce {
                     force: force_at_tire,
@@ -256,6 +264,7 @@ fn turn_tires(keys: Res<Input<KeyCode>>, mut tires: Query<(&mut Transform, &Tire
 fn calculate_tire_turning_forces(
     drivables: Query<(Entity, &Transform, &Velocity, &ReadMassProperties), With<Drivable>>,
     tires: Query<(&GlobalTransform, &Parent), With<Tire>>,
+    rapier_context: Res<RapierContext>,
     mut add_forces: EventWriter<AddForce>,
 ) {
     let tire_grip_strength = 0.7;
@@ -263,7 +272,14 @@ fn calculate_tire_turning_forces(
     for (tire_transform, parent) in &tires {
         let (parent_entity, parent_transform, parent_velocity, ReadMassProperties(car_mass)) =
             drivables.get(parent.get()).unwrap();
-        if tire_transform.compute_transform().translation.y < 2.0 {
+        let hit = rapier_context.cast_ray(
+            tire_transform.translation(),
+            tire_transform.down(),
+            1.5,
+            false,
+            QueryFilter::only_fixed(),
+        );
+        if hit.is_some() {
             let steering_direction = tire_transform.compute_transform().forward();
             let tire_velocity = parent_velocity.linear_velocity_at_point(
                 tire_transform.translation(),
