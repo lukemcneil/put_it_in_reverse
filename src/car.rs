@@ -14,6 +14,7 @@ impl Plugin for CarPlugin {
                     calculate_tire_turning_forces,
                     calculate_tire_suspension_forces,
                     calculate_tire_friction,
+                    reset_car,
                     (sum_all_forces, draw_tire_force_gizmos)
                         .after(calculate_tire_acceleration_and_braking_forces)
                         .after(calculate_tire_turning_forces)
@@ -235,6 +236,25 @@ struct AddForce {
     force: Vec3,
     point: Vec3,
     entity: Entity,
+}
+
+fn reset_car(
+    keys: Res<Input<KeyCode>>,
+    mut drivables: Query<(&mut Transform, &VehicleConfig, &mut Velocity), With<Drivable>>,
+){
+    for (mut drivable_transform, drivable_config, mut drivable_velocity) in &mut drivables{
+        let reseted_tranform = Transform::from_xyz(
+                    drivable_config.length - drivable_config.anchor_point.x,
+                    10.,
+                    0.,
+        );
+        if keys.just_pressed(KeyCode::R){
+            drivable_velocity.linvel = Vec3::ZERO;
+            drivable_velocity.angvel = Vec3::ZERO;
+            drivable_transform.translation = reseted_tranform.translation;
+            drivable_transform.rotation = reseted_tranform.rotation;
+        }
+    }
 }
 
 fn calculate_tire_suspension_forces(

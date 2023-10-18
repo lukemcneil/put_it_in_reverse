@@ -23,9 +23,10 @@ pub const CAR_CONFIG: VehicleConfig = VehicleConfig {
 };
 
 const TRAILER_LENGTH: f32 = 7.8768 / 2.0;
+const TRAILER_WIDTH: f32 = 2.159 / 2.0;
 pub const TRAILER_CONFIG: VehicleConfig = VehicleConfig {
     height: 0.18234 / 2.0,
-    width: 2.159 / 2.0,
+    width: TRAILER_WIDTH,
     length: TRAILER_LENGTH,
     wheelbase: 1.0 / 2.0,
     wheel_offset: -1.0,
@@ -36,7 +37,7 @@ pub const TRAILER_CONFIG: VehicleConfig = VehicleConfig {
     max_force: 0.0,
     turn_radius: 0.0,
     anchor_point: Vec3 {
-        x: TRAILER_LENGTH + 0.787,
+        x: TRAILER_LENGTH + TRAILER_WIDTH,
         y: -(0.18234 / 2.0),
         z: 0.0,
     },
