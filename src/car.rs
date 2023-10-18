@@ -212,11 +212,11 @@ fn lookup_power(velocity: Velocity) -> f32 {
 fn calculate_tire_acceleration_and_braking_forces(
     keys: Res<Input<KeyCode>>,
     tires: Query<(&GlobalTransform, &Parent, &Tire)>,
-    car: Query<(Entity, &Velocity), With<Drivable>>,
+    drivables: Query<(Entity, &Velocity), With<Drivable>>,
     mut add_forces: EventWriter<AddForce>,
 ) {
     for (tire_transform, parent, tire) in &tires {
-        let (parent_entity, parent_velocity) = car.get(parent.get()).unwrap();
+        let (parent_entity, parent_velocity) = drivables.get(parent.get()).unwrap();
         let force_at_tire = tire_transform
             .compute_transform()
             .rotation
@@ -255,7 +255,7 @@ fn turn_tires(keys: Res<Input<KeyCode>>, mut tires: Query<(&mut Transform, &Tire
 }
 
 fn calculate_tire_turning_forces(
-    car: Query<(Entity, &Transform, &Velocity, &ReadMassProperties), With<Drivable>>,
+    drivables: Query<(Entity, &Transform, &Velocity, &ReadMassProperties), With<Drivable>>,
     tires: Query<(&GlobalTransform, &Parent), With<Tire>>,
     mut add_forces: EventWriter<AddForce>,
 ) {
@@ -263,7 +263,7 @@ fn calculate_tire_turning_forces(
 
     for (tire_transform, parent) in &tires {
         let (parent_entity, parent_transform, parent_velocity, ReadMassProperties(car_mass)) =
-            car.get(parent.get()).unwrap();
+            drivables.get(parent.get()).unwrap();
         if tire_transform.compute_transform().translation.y < 2.0 {
             let steering_direction = tire_transform.compute_transform().forward();
             let tire_velocity = parent_velocity.linear_velocity_at_point(
