@@ -1,4 +1,5 @@
 mod car;
+mod car_configs;
 
 use std::f32::consts::PI;
 
@@ -8,6 +9,7 @@ use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
 use car::{CameraPosition, Car};
+use car_configs::TRAILER_CONFIG;
 
 fn main() {
     App::new()
@@ -95,12 +97,15 @@ pub fn setup_physics(
     ));
 
     // car and trailer
-    let car_entity = car::spawn_car(&mut commands);
-    let trailer_entity = car::spawn_trailer(&mut commands);
+    let car_config = car_configs::CAR_CONFIG;
+    let car_entity = car::spawn_car(&mut commands, car_config.clone());
+
+    let trailer_config = TRAILER_CONFIG;
+    let trailer_entity = car::spawn_trailer(&mut commands, trailer_config.clone());
 
     let joint = SphericalJointBuilder::new()
-        .local_anchor1(Vec3::new(-3.5, 0.0, 0.0))
-        .local_anchor2(Vec3::new(2.5, 0.0, 0.0));
+        .local_anchor1(car_config.anchor_point)
+        .local_anchor2(trailer_config.anchor_point);
     commands
         .get_entity(trailer_entity)
         .unwrap()
