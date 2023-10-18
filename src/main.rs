@@ -5,6 +5,7 @@ use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
+use car::{CameraPosition, Car};
 
 fn main() {
     App::new()
@@ -25,34 +26,9 @@ fn main() {
         ))
         .add_plugins(car::CarPlugin)
         .add_systems(Startup, setup_physics)
+        .add_systems(Update, camera_follow_car)
         .run();
 }
-
-#[derive(Component, Default, Reflect)]
-#[reflect(Component)]
-enum Location {
-    #[default]
-    Front,
-    Back,
-}
-
-#[derive(Component, Default, Reflect)]
-#[reflect(Component)]
-struct Car;
-
-#[derive(Component, Default, Reflect)]
-#[reflect(Component)]
-struct Drivable;
-#[derive(Component, Default, Reflect)]
-#[reflect(Component)]
-struct Tire {
-    connected_to_engine: bool,
-    location: Location,
-}
-
-#[derive(Component, Default, Reflect)]
-#[reflect(Component)]
-struct CameraPosition;
 
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]
@@ -132,4 +108,21 @@ pub fn setup_physics(
             });
         }
     }
+}
+
+fn camera_follow_car(
+    mut camera: Query<&mut Transform, With<CarCamera>>,
+    car_camera_desired_position: Query<&GlobalTransform, With<CameraPosition>>,
+    car: Query<&GlobalTransform, With<Car>>,
+    time: Res<Time>,
+) {
+    let new_cam_location = car_camera_desired_position.single();
+    let mut car_camera = camera.single_mut();
+    let lerped_position = car_camera
+        .translation
+        .lerp(new_cam_location.translation(), time.delta_seconds());
+    car_camera.translation = Vec3::new(lerped_position.x, 30.0, lerped_position.z);
+    car_camera.rotation = car_camera
+        .looking_at(car.single().translation(), Vec3::Y)
+        .rotation;
 }

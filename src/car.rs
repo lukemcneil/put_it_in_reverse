@@ -1,31 +1,57 @@
 use bevy::{prelude::*, utils::HashMap};
 use bevy_rapier3d::prelude::*;
 
-use crate::{CameraPosition, Car, CarCamera, Drivable, Location, Tire};
-
 pub struct CarPlugin;
 
 impl Plugin for CarPlugin {
     fn build(&self, app: &mut App) {
         app.add_event::<AddForce>()
-            .register_type::<Car>()
-            .register_type::<Tire>()
             .add_systems(
                 Update,
                 (
                     turn_tires,
                     calculate_tire_acceleration_and_braking_forces,
                     calculate_tire_turning_forces,
-                    suspension_force_calculations,
-                    camera_follow_car,
+                    calculate_tire_suspension_forces,
                     (sum_all_forces, draw_tire_force_gizmos)
                         .after(calculate_tire_acceleration_and_braking_forces)
-                        .after(calculate_tire_turning_forces),
+                        .after(calculate_tire_turning_forces)
+                        .after(calculate_tire_suspension_forces),
                     draw_tire_gizmos,
                 ),
-            );
+            )
+            .register_type::<Car>()
+            .register_type::<Drivable>()
+            .register_type::<Tire>()
+            .register_type::<CameraPosition>();
     }
 }
+
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
+pub struct Car;
+
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
+struct Drivable;
+
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
+struct Tire {
+    connected_to_engine: bool,
+    location: TireLocation,
+}
+
+#[derive(Default, Reflect)]
+enum TireLocation {
+    #[default]
+    Front,
+    Back,
+}
+
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
+pub struct CameraPosition;
 
 pub fn spawn_car(commands: &mut Commands) -> Entity {
     commands
@@ -46,7 +72,7 @@ pub fn spawn_car(commands: &mut Commands) -> Entity {
                 TransformBundle::from(Transform::from_xyz(2.5, -0.125, 1.0)),
                 Tire {
                     connected_to_engine: true,
-                    location: Location::Front,
+                    location: TireLocation::Front,
                 },
                 Name::from("Tire Front Right"),
             ));
@@ -55,7 +81,7 @@ pub fn spawn_car(commands: &mut Commands) -> Entity {
                 TransformBundle::from(Transform::from_xyz(2.5, -0.125, -1.0)),
                 Tire {
                     connected_to_engine: true,
-                    location: Location::Front,
+                    location: TireLocation::Front,
                 },
                 Name::from("Tire Front Left"),
             ));
@@ -64,7 +90,7 @@ pub fn spawn_car(commands: &mut Commands) -> Entity {
                 TransformBundle::from(Transform::from_xyz(-2.5, -0.125, 1.0)),
                 Tire {
                     connected_to_engine: false,
-                    location: Location::Back,
+                    location: TireLocation::Back,
                 },
                 Name::from("Tire Back Right"),
             ));
@@ -73,7 +99,7 @@ pub fn spawn_car(commands: &mut Commands) -> Entity {
                 TransformBundle::from(Transform::from_xyz(-2.5, -0.125, -1.0)),
                 Tire {
                     connected_to_engine: false,
-                    location: Location::Back,
+                    location: TireLocation::Back,
                 },
                 Name::from("Tire Back Left"),
             ));
@@ -108,7 +134,7 @@ pub fn spawn_trailer(commands: &mut Commands) -> Entity {
                 TransformBundle::from(Transform::from_xyz(-0.5, -0.25, 2.1)),
                 Tire {
                     connected_to_engine: false,
-                    location: Location::Back,
+                    location: TireLocation::Back,
                 },
                 Name::from("Tire Trailer Right"),
             ));
@@ -116,28 +142,12 @@ pub fn spawn_trailer(commands: &mut Commands) -> Entity {
                 TransformBundle::from(Transform::from_xyz(-0.5, -0.25, -2.1)),
                 Tire {
                     connected_to_engine: false,
-                    location: Location::Back,
+                    location: TireLocation::Back,
                 },
                 Name::from("Tire Trailer Left"),
             ));
         })
         .id()
-}
-
-fn camera_follow_car(
-    mut camera: Query<&mut Transform, With<CarCamera>>,
-    car_camera_desired_position: Query<&GlobalTransform, With<CameraPosition>>,
-    car: Query<&GlobalTransform, With<Car>>,
-) {
-    let new_cam_location = car_camera_desired_position.single();
-    let mut car_camera = camera.single_mut();
-    let lerped_position = car_camera
-        .translation
-        .lerp(new_cam_location.translation(), 0.01);
-    car_camera.translation = Vec3::new(lerped_position.x, 30.0, lerped_position.z);
-    car_camera.rotation = car_camera
-        .looking_at(car.single().translation(), Vec3::Y)
-        .rotation;
 }
 
 #[derive(Event)]
@@ -147,7 +157,7 @@ struct AddForce {
     entity: Entity,
 }
 
-fn suspension_force_calculations(
+fn calculate_tire_suspension_forces(
     tires: Query<(&GlobalTransform, &Parent), With<Tire>>,
     car: Query<(Entity, &Velocity, &Transform), With<Drivable>>,
     rapier_context: Res<RapierContext>,
@@ -235,7 +245,7 @@ fn calculate_tire_acceleration_and_braking_forces(
 fn turn_tires(keys: Res<Input<KeyCode>>, mut tires: Query<(&mut Transform, &Tire)>) {
     let turning_radius = 0.296706;
     for (mut tire_transform, tire) in &mut tires {
-        if let Location::Front = tire.location {
+        if let TireLocation::Front = tire.location {
             if keys.pressed(KeyCode::D) {
                 tire_transform.rotation = Quat::from_axis_angle(Vec3::Y, -turning_radius);
             } else if keys.pressed(KeyCode::A) {
