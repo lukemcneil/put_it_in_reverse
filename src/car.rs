@@ -386,7 +386,7 @@ fn reset_car(
                     continue;
                 }
                 match button_ev.button_type {
-                    GamepadButtonType::Mode => {
+                    GamepadButtonType::Start => {
                         should_respawn = true;
                     }
                     _ => (),
@@ -603,11 +603,11 @@ fn turn_tires(
         };
 
         for gamepad in gamepads.iter() {
-            let axis_lx = GamepadAxis {
+            let axis_rx = GamepadAxis {
                 gamepad,
-                axis_type: GamepadAxisType::LeftStickX,
+                axis_type: GamepadAxisType::RightStickX,
             };
-            if let Some(x) = axes.get(axis_lx) {
+            if let Some(x) = axes.get(axis_rx) {
                 if x != 0.0 {
                     multiplier = -x;
                 }
