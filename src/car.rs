@@ -219,6 +219,34 @@ pub fn spawn_car(
                     .with_rotation(Quat::from_axis_angle(Vec3::Y, -PI / 2.0)),
                 ..default()
             });
+            child_builder.spawn(PbrBundle {
+                mesh: meshes.add(shape::Cube { size: 0.25 }.try_into().unwrap()),
+                material: materials.add(StandardMaterial {
+                    emissive: Color::RED,
+                    ..default()
+                }),
+                transform: Transform::from_xyz(
+                    -vehicle_config.length,
+                    vehicle_config.height / 3.0,
+                    vehicle_config.width - 0.125,
+                )
+                .with_rotation(Quat::from_axis_angle(Vec3::Y, PI / 2.0)),
+                ..default()
+            });
+            child_builder.spawn(PbrBundle {
+                mesh: meshes.add(shape::Cube { size: 0.25 }.try_into().unwrap()),
+                material: materials.add(StandardMaterial {
+                    emissive: Color::RED,
+                    ..default()
+                }),
+                transform: Transform::from_xyz(
+                    -vehicle_config.length,
+                    vehicle_config.height / 3.0,
+                    -vehicle_config.width + 0.125,
+                )
+                .with_rotation(Quat::from_axis_angle(Vec3::Y, PI / 2.0)),
+                ..default()
+            });
         })
         .id()
 }
@@ -301,6 +329,34 @@ pub fn spawn_trailer(
                     -vehicle_config.width,
                 )),
                 name: Name::from("Tire Back Left"),
+                ..default()
+            });
+            child_builder.spawn(PbrBundle {
+                mesh: meshes.add(shape::Cube { size: 0.25 }.try_into().unwrap()),
+                material: materials.add(StandardMaterial {
+                    emissive: Color::RED,
+                    ..default()
+                }),
+                transform: Transform::from_xyz(
+                    -vehicle_config.length,
+                    vehicle_config.height / 3.0,
+                    vehicle_config.width - 0.125,
+                )
+                .with_rotation(Quat::from_axis_angle(Vec3::Y, PI / 2.0)),
+                ..default()
+            });
+            child_builder.spawn(PbrBundle {
+                mesh: meshes.add(shape::Cube { size: 0.25 }.try_into().unwrap()),
+                material: materials.add(StandardMaterial {
+                    emissive: Color::RED,
+                    ..default()
+                }),
+                transform: Transform::from_xyz(
+                    -vehicle_config.length,
+                    vehicle_config.height / 3.0,
+                    -vehicle_config.width + 0.125,
+                )
+                .with_rotation(Quat::from_axis_angle(Vec3::Y, PI / 2.0)),
                 ..default()
             });
         })
