@@ -3,6 +3,8 @@ mod car_configs;
 
 use std::f32::consts::PI;
 
+use bevy::core_pipeline::bloom::{BloomCompositeMode, BloomSettings};
+use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
@@ -47,8 +49,19 @@ pub fn setup_physics(
     // camera
     commands.spawn((
         Camera3dBundle {
+            camera: Camera {
+                hdr: true,
+                ..default()
+            },
             transform: Transform::from_xyz(-50.0, 50.0, 0.0)
                 .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
+            tonemapping: Tonemapping::TonyMcMapface,
+            ..default()
+        },
+        BloomSettings {
+            intensity: 0.15,
+            low_frequency_boost: 0.1,
+            composite_mode: BloomCompositeMode::Additive,
             ..default()
         },
         CarCamera,
