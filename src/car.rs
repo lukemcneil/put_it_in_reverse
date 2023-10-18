@@ -44,8 +44,8 @@ struct Tire {
 
 #[derive(Default, Reflect)]
 enum TireLocation {
-    #[default]
     Front,
+    #[default]
     Back,
 }
 
@@ -53,56 +53,65 @@ enum TireLocation {
 #[reflect(Component)]
 pub struct CameraPosition;
 
+#[derive(Bundle, Default)]
+struct DrivableBundle {
+    transorm_bundle: TransformBundle,
+    rigidbody: RigidBody,
+    collider: Collider,
+    drivable: Drivable,
+    read_mass_properties: ReadMassProperties,
+    velocity: Velocity,
+    external_force: ExternalForce,
+    name: Name,
+    friction: Friction,
+}
+
+#[derive(Bundle, Default)]
+struct TireBundle {
+    transform_bundle: TransformBundle,
+    tire: Tire,
+    name: Name,
+}
+
 pub fn spawn_car(commands: &mut Commands) -> Entity {
     commands
         .spawn((
-            TransformBundle::from(Transform::from_xyz(0., 10., 0.)),
-            RigidBody::Dynamic,
-            Collider::cuboid(3., 0.25, 1.),
+            DrivableBundle {
+                transorm_bundle: TransformBundle::from(Transform::from_xyz(0., 10., 0.)),
+                collider: Collider::cuboid(3., 0.25, 1.),
+                name: Name::from("Car"),
+                friction: Friction::coefficient(0.5),
+                ..default()
+            },
             Car,
-            Drivable,
-            ReadMassProperties::default(),
-            Velocity::default(),
-            ExternalForce::default(),
-            Name::from("Car"),
-            Friction::coefficient(0.5),
         ))
         .with_children(|child_builder| {
-            child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(2.5, -0.125, 1.0)),
-                Tire {
+            child_builder.spawn(TireBundle {
+                transform_bundle: TransformBundle::from(Transform::from_xyz(2.5, -0.125, 1.0)),
+                tire: Tire {
                     connected_to_engine: true,
                     location: TireLocation::Front,
                 },
-                Name::from("Tire Front Right"),
-            ));
-
-            child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(2.5, -0.125, -1.0)),
-                Tire {
+                name: Name::from("Tire Front Right"),
+            });
+            child_builder.spawn(TireBundle {
+                transform_bundle: TransformBundle::from(Transform::from_xyz(2.5, -0.125, -1.0)),
+                tire: Tire {
                     connected_to_engine: true,
                     location: TireLocation::Front,
                 },
-                Name::from("Tire Front Left"),
-            ));
-
-            child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-2.5, -0.125, 1.0)),
-                Tire {
-                    connected_to_engine: false,
-                    location: TireLocation::Back,
-                },
-                Name::from("Tire Back Right"),
-            ));
-
-            child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-2.5, -0.125, -1.0)),
-                Tire {
-                    connected_to_engine: false,
-                    location: TireLocation::Back,
-                },
-                Name::from("Tire Back Left"),
-            ));
+                name: Name::from("Tire Front Left"),
+            });
+            child_builder.spawn(TireBundle {
+                transform_bundle: TransformBundle::from(Transform::from_xyz(-2.5, -0.125, 1.0)),
+                name: Name::from("Tire Back Right"),
+                ..default()
+            });
+            child_builder.spawn(TireBundle {
+                transform_bundle: TransformBundle::from(Transform::from_xyz(-2.5, -0.125, -1.0)),
+                name: Name::from("Tire Back Left"),
+                ..default()
+            });
 
             child_builder.spawn((
                 TransformBundle::from(
@@ -118,34 +127,24 @@ pub fn spawn_car(commands: &mut Commands) -> Entity {
 
 pub fn spawn_trailer(commands: &mut Commands) -> Entity {
     commands
-        .spawn((
-            TransformBundle::from(Transform::from_xyz(-5.0, 10.0, 0.0)),
-            RigidBody::Dynamic,
-            Collider::cuboid(2.0, 0.25, 2.0),
-            Friction::coefficient(0.5),
-            Drivable,
-            Name::from("Trailer"),
-            Velocity::default(),
-            ReadMassProperties::default(),
-            ExternalForce::default(),
-        ))
+        .spawn((DrivableBundle {
+            transorm_bundle: TransformBundle::from(Transform::from_xyz(-5.0, 10.0, 0.0)),
+            collider: Collider::cuboid(2.0, 0.25, 2.0),
+            name: Name::from("Trailer"),
+            friction: Friction::coefficient(0.5),
+            ..default()
+        },))
         .with_children(|child_builder| {
-            child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-0.5, -0.25, 2.1)),
-                Tire {
-                    connected_to_engine: false,
-                    location: TireLocation::Back,
-                },
-                Name::from("Tire Trailer Right"),
-            ));
-            child_builder.spawn((
-                TransformBundle::from(Transform::from_xyz(-0.5, -0.25, -2.1)),
-                Tire {
-                    connected_to_engine: false,
-                    location: TireLocation::Back,
-                },
-                Name::from("Tire Trailer Left"),
-            ));
+            child_builder.spawn(TireBundle {
+                transform_bundle: TransformBundle::from(Transform::from_xyz(-0.5, -0.25, 2.1)),
+                name: Name::from("Tire Trailer Right"),
+                ..default()
+            });
+            child_builder.spawn(TireBundle {
+                transform_bundle: TransformBundle::from(Transform::from_xyz(-0.5, -0.25, -2.1)),
+                name: Name::from("Tire Trailer Left"),
+                ..default()
+            });
         })
         .id()
 }
