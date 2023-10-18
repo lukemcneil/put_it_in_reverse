@@ -59,8 +59,8 @@ pub fn setup_physics(
             ..default()
         },
         BloomSettings {
-            intensity: 0.22,
-            // low_frequency_boost: 0.69,
+            intensity: 0.15,
+            low_frequency_boost: 0.1,
             composite_mode: BloomCompositeMode::Additive,
             ..default()
         },
