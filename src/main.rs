@@ -58,7 +58,7 @@ pub fn setup_physics(
     let ground_size = 100.0;
     let ground_height = 0.1;
 
-    let texture_handle = asset_server.load("floor.png");
+    let floor_texture_handle = asset_server.load("floor.png");
     commands.spawn((
         Collider::cuboid(ground_size, ground_height, ground_size),
         Name::from("Floor"),
@@ -68,7 +68,7 @@ pub fn setup_physics(
                 subdivisions: 0,
             })),
             material: materials.add(StandardMaterial {
-                base_color_texture: Some(texture_handle.clone()),
+                base_color_texture: Some(floor_texture_handle.clone()),
                 // TODO: remove this unlit, then add a sun and headlights
                 unlit: true,
                 ..default()
@@ -86,7 +86,7 @@ pub fn setup_physics(
         MaterialMeshBundle {
             mesh: meshes.add(Mesh::from(shape::Cube { size: 20.0 * 2.0 })),
             material: materials.add(StandardMaterial {
-                base_color_texture: Some(texture_handle.clone()),
+                base_color_texture: Some(floor_texture_handle.clone()),
                 unlit: true,
                 ..default()
             }),
@@ -96,12 +96,25 @@ pub fn setup_physics(
         },
     ));
 
+    let car_texture_handle = asset_server.load("car.png");
     // car and trailer
     let car_config = car_configs::CAR_CONFIG;
-    let car_entity = car::spawn_car(&mut commands, car_config.clone());
+    let car_entity = car::spawn_car(
+        &mut commands,
+        car_config.clone(),
+        &mut materials,
+        &mut meshes,
+        car_texture_handle.clone(),
+    );
 
     let trailer_config = TRAILER_CONFIG;
-    let trailer_entity = car::spawn_trailer(&mut commands, trailer_config.clone());
+    let trailer_entity = car::spawn_trailer(
+        &mut commands,
+        trailer_config.clone(),
+        &mut materials,
+        &mut meshes,
+        car_texture_handle,
+    );
 
     let joint = SphericalJointBuilder::new()
         .local_anchor1(car_config.anchor_point)

@@ -76,7 +76,6 @@ pub struct VehicleConfig {
 
 #[derive(Bundle, Default)]
 struct DrivableBundle {
-    transorm_bundle: TransformBundle,
     rigidbody: RigidBody,
     collider: Collider,
     drivable: Drivable,
@@ -95,15 +94,16 @@ struct TireBundle {
     name: Name,
 }
 
-pub fn spawn_car(commands: &mut Commands, vehicle_config: VehicleConfig) -> Entity {
+pub fn spawn_car(
+    commands: &mut Commands,
+    vehicle_config: VehicleConfig,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    texture_handle: Handle<Image>,
+) -> Entity {
     commands
         .spawn((
             DrivableBundle {
-                transorm_bundle: TransformBundle::from(Transform::from_xyz(
-                    vehicle_config.length - vehicle_config.anchor_point.x,
-                    10.,
-                    0.,
-                )),
                 collider: Collider::cuboid(
                     vehicle_config.length,
                     vehicle_config.height,
@@ -112,6 +112,28 @@ pub fn spawn_car(commands: &mut Commands, vehicle_config: VehicleConfig) -> Enti
                 name: Name::from("Car"),
                 friction: Friction::coefficient(0.5),
                 vehicle_config,
+                ..default()
+            },
+            MaterialMeshBundle {
+                mesh: meshes.add(Mesh::from(shape::Box {
+                    min_x: -vehicle_config.length,
+                    max_x: vehicle_config.length,
+                    min_y: -vehicle_config.height,
+                    max_y: vehicle_config.height,
+                    min_z: -vehicle_config.width,
+                    max_z: vehicle_config.width,
+                })),
+                material: materials.add(StandardMaterial {
+                    base_color_texture: Some(texture_handle.clone()),
+                    unlit: true,
+                    ..default()
+                }),
+                transform: Transform::from_xyz(
+                    vehicle_config.length - vehicle_config.anchor_point.x,
+                    10.,
+                    0.,
+                ),
+                global_transform: default(),
                 ..default()
             },
             Car,
@@ -172,24 +194,49 @@ pub fn spawn_car(commands: &mut Commands, vehicle_config: VehicleConfig) -> Enti
         .id()
 }
 
-pub fn spawn_trailer(commands: &mut Commands, vehicle_config: VehicleConfig) -> Entity {
+pub fn spawn_trailer(
+    commands: &mut Commands,
+    vehicle_config: VehicleConfig,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    texture_handle: Handle<Image>,
+) -> Entity {
     commands
-        .spawn((DrivableBundle {
-            transorm_bundle: TransformBundle::from(Transform::from_xyz(
-                vehicle_config.length - vehicle_config.anchor_point.x,
-                10.0,
-                0.0,
-            )),
-            collider: Collider::cuboid(
-                vehicle_config.length,
-                vehicle_config.height,
-                vehicle_config.width,
-            ),
-            name: Name::from("Trailer"),
-            friction: Friction::coefficient(0.5),
-            vehicle_config,
-            ..default()
-        },))
+        .spawn((
+            DrivableBundle {
+                collider: Collider::cuboid(
+                    vehicle_config.length,
+                    vehicle_config.height,
+                    vehicle_config.width,
+                ),
+                name: Name::from("Trailer"),
+                friction: Friction::coefficient(0.5),
+                vehicle_config,
+                ..default()
+            },
+            MaterialMeshBundle {
+                mesh: meshes.add(Mesh::from(shape::Box {
+                    min_x: -vehicle_config.length,
+                    max_x: vehicle_config.length,
+                    min_y: -vehicle_config.height,
+                    max_y: vehicle_config.height,
+                    min_z: -vehicle_config.width,
+                    max_z: vehicle_config.width,
+                })),
+                material: materials.add(StandardMaterial {
+                    base_color_texture: Some(texture_handle.clone()),
+                    unlit: true,
+                    ..default()
+                }),
+                transform: Transform::from_xyz(
+                    vehicle_config.length - vehicle_config.anchor_point.x,
+                    10.0,
+                    0.0,
+                ),
+                global_transform: default(),
+                ..default()
+            },
+        ))
         .with_children(|child_builder| {
             child_builder.spawn(TireBundle {
                 transform_bundle: TransformBundle::from(Transform::from_xyz(
@@ -241,14 +288,14 @@ struct AddForce {
 fn reset_car(
     keys: Res<Input<KeyCode>>,
     mut drivables: Query<(&mut Transform, &VehicleConfig, &mut Velocity), With<Drivable>>,
-){
-    for (mut drivable_transform, drivable_config, mut drivable_velocity) in &mut drivables{
+) {
+    for (mut drivable_transform, drivable_config, mut drivable_velocity) in &mut drivables {
         let reseted_tranform = Transform::from_xyz(
-                    drivable_config.length - drivable_config.anchor_point.x,
-                    10.,
-                    0.,
+            drivable_config.length - drivable_config.anchor_point.x,
+            10.,
+            0.,
         );
-        if keys.just_pressed(KeyCode::R){
+        if keys.just_pressed(KeyCode::R) {
             drivable_velocity.linvel = Vec3::ZERO;
             drivable_velocity.angvel = Vec3::ZERO;
             drivable_transform.translation = reseted_tranform.translation;
