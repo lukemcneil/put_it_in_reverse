@@ -13,10 +13,12 @@ impl Plugin for CarPlugin {
                     calculate_tire_acceleration_and_braking_forces,
                     calculate_tire_turning_forces,
                     calculate_tire_suspension_forces,
+                    calculate_tire_friction,
                     (sum_all_forces, draw_tire_force_gizmos)
                         .after(calculate_tire_acceleration_and_braking_forces)
                         .after(calculate_tire_turning_forces)
-                        .after(calculate_tire_suspension_forces),
+                        .after(calculate_tire_suspension_forces)
+                        .after(calculate_tire_friction),
                     draw_tire_gizmos,
                 ),
             )
@@ -238,6 +240,52 @@ fn calculate_tire_acceleration_and_braking_forces(
             } else if keys.pressed(KeyCode::S) {
                 add_forces.send(AddForce {
                     force: -force_at_tire,
+                    point: tire_transform.translation(),
+                    entity: parent_entity,
+                });
+            }
+        }
+    }
+}
+
+fn calculate_tire_friction(
+    tires: Query<(&GlobalTransform, &Parent, &Tire)>,
+    drivables: Query<(Entity, &Velocity, &Transform, &ReadMassProperties), With<Drivable>>,
+    rapier_context: Res<RapierContext>,
+    mut add_forces: EventWriter<AddForce>,
+) {
+    let coefficient_of_friction = 1.0;
+    for (tire_transform, parent, tire) in &tires {
+        let (parent_entity, parent_velocity, parent_transform, ReadMassProperties(mass_properties)) =
+            drivables.get(parent.get()).unwrap();
+        let hit = rapier_context.cast_ray(
+            tire_transform.translation(),
+            tire_transform.down(),
+            1.5,
+            false,
+            QueryFilter::only_fixed(),
+        );
+        if hit.is_some() && tire.connected_to_engine {
+            if parent_velocity.linvel.length() > 0.0 {
+                let tire_velocity = parent_velocity.linear_velocity_at_point(
+                    tire_transform.translation(),
+                    parent_transform.translation,
+                );
+                let multiplier = if tire_velocity.dot(tire_transform.right()) < 0.0 {
+                    1.0
+                } else {
+                    -1.0
+                };
+                add_forces.send(AddForce {
+                    force: multiplier
+                        * tire_transform
+                            .compute_transform()
+                            .rotation
+                            .mul_vec3(Vec3::new(
+                                (mass_properties.mass / 4.0) * coefficient_of_friction * 9.81,
+                                0.0,
+                                0.0,
+                            )),
                     point: tire_transform.translation(),
                     entity: parent_entity,
                 });
