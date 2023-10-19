@@ -507,11 +507,11 @@ fn calculate_tire_acceleration_and_braking_forces(
             };
 
             for gamepad in gamepads.iter() {
-                let axis_ly = GamepadAxis {
+                let axis_ry = GamepadAxis {
                     gamepad,
-                    axis_type: GamepadAxisType::LeftStickY,
+                    axis_type: GamepadAxisType::RightStickY,
                 };
-                if let Some(y) = axes.get(axis_ly) {
+                if let Some(y) = axes.get(axis_ry) {
                     multiplier = y;
                 }
             }
@@ -603,11 +603,11 @@ fn turn_tires(
         };
 
         for gamepad in gamepads.iter() {
-            let axis_rx = GamepadAxis {
+            let axis_lx = GamepadAxis {
                 gamepad,
-                axis_type: GamepadAxisType::RightStickX,
+                axis_type: GamepadAxisType::LeftStickX,
             };
-            if let Some(x) = axes.get(axis_rx) {
+            if let Some(x) = axes.get(axis_lx) {
                 if x != 0.0 {
                     multiplier = -x;
                 }
