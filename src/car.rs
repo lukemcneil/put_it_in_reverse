@@ -1,6 +1,10 @@
 use std::f32::consts::PI;
 
-use bevy::{input::gamepad::GamepadEvent, prelude::*, utils::HashMap};
+use bevy::{
+    input::{common_conditions::input_toggle_active, gamepad::GamepadEvent},
+    prelude::*,
+    utils::HashMap,
+};
 use bevy_rapier3d::prelude::*;
 
 pub struct CarPlugin;
@@ -17,7 +21,10 @@ impl Plugin for CarPlugin {
                     calculate_tire_suspension_forces,
                     calculate_tire_friction,
                     reset_car,
-                    (sum_all_forces)
+                    (
+                        sum_all_forces,
+                        draw_tire_force_gizmos.run_if(input_toggle_active(false, KeyCode::L)),
+                    )
                         .after(calculate_tire_acceleration_and_braking_forces)
                         .after(calculate_tire_turning_forces)
                         .after(calculate_tire_suspension_forces)
@@ -704,7 +711,7 @@ fn sum_all_forces(
     }
 }
 
-fn _draw_tire_force_gizmos(mut add_forces: EventReader<AddForce>, mut gizmos: Gizmos) {
+fn draw_tire_force_gizmos(mut add_forces: EventReader<AddForce>, mut gizmos: Gizmos) {
     let scale_factor = 0.04;
     for AddForce {
         force,
