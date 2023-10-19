@@ -504,30 +504,28 @@ fn calculate_tire_acceleration_and_braking_forces(
             false,
             QueryFilter::only_fixed(),
         );
-        if hit.is_some() && tire.connected_to_engine {
-            if keys.pressed(KeyCode::W) {
-                *multiplier = 1.0;
-            } else if keys.pressed(KeyCode::S) {
-                *multiplier = -1.0;
-            } else if keys.just_released(KeyCode::W) || keys.just_released(KeyCode::S) {
-                *multiplier = 0.0;
-            };
-
-            for ev in gamepad_evr.iter() {
-                match ev {
-                    GamepadEvent::Button(button_ev) => match button_ev.button_type {
-                        GamepadButtonType::RightTrigger2 => {
-                            *multiplier = button_ev.value;
-                        }
-                        GamepadButtonType::LeftTrigger2 => {
-                            *multiplier = -button_ev.value;
-                        }
-                        _ => (),
-                    },
+        if keys.pressed(KeyCode::W) {
+            *multiplier = 1.0;
+        } else if keys.pressed(KeyCode::S) {
+            *multiplier = -1.0;
+        } else if keys.just_released(KeyCode::W) || keys.just_released(KeyCode::S) {
+            *multiplier = 0.0;
+        };
+        for ev in gamepad_evr.iter() {
+            match ev {
+                GamepadEvent::Button(button_ev) => match button_ev.button_type {
+                    GamepadButtonType::RightTrigger2 => {
+                        *multiplier = button_ev.value;
+                    }
+                    GamepadButtonType::LeftTrigger2 => {
+                        *multiplier = -button_ev.value;
+                    }
                     _ => (),
-                }
+                },
+                _ => (),
             }
-
+        }
+        if hit.is_some() && tire.connected_to_engine {
             add_forces.send(AddForce {
                 force: *multiplier * force_at_tire,
                 point: tire_transform.translation(),
