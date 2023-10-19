@@ -81,6 +81,7 @@ pub struct VehicleConfig {
     pub max_force: f32,
     pub turn_radius: f32,
     pub anchor_point: Vec3,
+    pub scale: f32,
 }
 
 #[derive(Bundle, Default)]

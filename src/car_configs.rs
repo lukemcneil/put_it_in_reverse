@@ -20,6 +20,7 @@ pub const CAR_CONFIG: VehicleConfig = VehicleConfig {
         y: -0.7,
         z: 0.0,
     },
+    scale: 1.0,
 };
 
 const TRAILER_LENGTH: f32 = 7.8768 / 2.0;
@@ -41,4 +42,5 @@ pub const TRAILER_CONFIG: VehicleConfig = VehicleConfig {
         y: -(0.18234 / 2.0),
         z: 0.0,
     },
+    scale: 1.0,
 };

@@ -22,5 +22,11 @@ fn config_ui_system(
     bevy_inspector_egui::egui::Window::new("Settings").show(contexts.ctx_mut(), |ui| {
         ui.add(Slider::new(&mut vehicle_config.max_speed, 5.0..=200.0).text("max speed"));
         ui.add(Slider::new(&mut vehicle_config.max_force, 50.0..=1000.0).text("max force"));
+        ui.add(
+            Slider::new(&mut vehicle_config.spring_offset, 0.0..=10.0).text("suspension height"),
+        );
+        ui.add(Slider::new(&mut vehicle_config.spring_power, 0.0..=100.0).text("suspension power"));
+        ui.add(Slider::new(&mut vehicle_config.shock, 0.0..=100.0).text("shock viscosity"));
+        ui.add(Slider::new(&mut vehicle_config.scale, 0.5..=10.0).text("car scale"));
     });
 }
