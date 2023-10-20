@@ -4,7 +4,7 @@ use bevy::{input::common_conditions::input_toggle_active, prelude::*};
 use bevy_inspector_egui::{bevy_egui::EguiContexts, egui::Slider};
 use bevy_rapier3d::prelude::*;
 
-use crate::car::VehicleConfig;
+use crate::car::{Tire, VehicleConfig};
 
 pub struct UIPlugin;
 
@@ -19,12 +19,12 @@ impl Plugin for UIPlugin {
 
 fn config_ui_system(
     mut contexts: EguiContexts,
-    mut vehicle_configs: Query<(Entity, &mut VehicleConfig, &Name, &mut Collider)>,
+    mut vehicle_configs: Query<(Entity, &mut VehicleConfig, &Name, &Children)>,
+    mut tires: Query<(&mut Tire, &Name)>,
     mut commands: Commands,
     mut meshes: ResMut<Assets<Mesh>>,
 ) {
-    for (vehicle_entity, mut vehicle_config, vehicle_name, mut vehicle_collider) in
-        &mut vehicle_configs
+    for (vehicle_entity, mut vehicle_config, vehicle_name, vehicle_children) in &mut vehicle_configs
     {
         bevy_inspector_egui::egui::Window::new(format!("{} Settings", vehicle_name)).show(
             contexts.ctx_mut(),
@@ -67,6 +67,19 @@ fn config_ui_system(
                     Slider::new(&mut vehicle_config.turn_radius, 0.0..=(PI / 4.0))
                         .text("turn radius"),
                 );
+
+                for child in vehicle_children {
+                    let tire = tires.get_mut(*child);
+                    if let Ok((mut tire, tire_name)) = tire {
+                        ui.collapsing(tire_name.as_str(), |ui| {
+                            ui.horizontal(|ui| {
+                                ui.checkbox(&mut tire.connected_to_engine, "spins");
+                                ui.checkbox(&mut tire.turns, "turns");
+                                ui.add(Slider::new(&mut tire.grip, 0.0..=1.0).text("grip"));
+                            });
+                        });
+                    }
+                }
             },
         );
     }
