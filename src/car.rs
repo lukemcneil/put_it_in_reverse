@@ -387,7 +387,13 @@ struct AddForce {
 fn reset_car(
     keys: Res<Input<KeyCode>>,
     mut drivables: Query<
-        (&mut Transform, &VehicleConfig, &mut Velocity, Option<&Car>),
+        (
+            &mut Transform,
+            &VehicleConfig,
+            &mut Velocity,
+            Option<&Car>,
+            &mut ExternalForce,
+        ),
         With<Drivable>,
     >,
     mut gamepad_evr: EventReader<GamepadEvent>,
@@ -410,8 +416,13 @@ fn reset_car(
         }
     }
 
-    for (mut drivable_transform, drivable_config, mut drivable_velocity, maybe_car) in
-        &mut drivables
+    for (
+        mut drivable_transform,
+        drivable_config,
+        mut drivable_velocity,
+        maybe_car,
+        mut external_force,
+    ) in &mut drivables
     {
         let reseted_tranform = Transform::from_xyz(
             match maybe_car {
@@ -423,6 +434,8 @@ fn reset_car(
         );
 
         if should_respawn {
+            external_force.force = Vec3::ZERO;
+            external_force.torque = Vec3::ZERO;
             drivable_velocity.linvel = Vec3::ZERO;
             drivable_velocity.angvel = Vec3::ZERO;
             drivable_transform.translation = reseted_tranform.translation;
