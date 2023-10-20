@@ -20,6 +20,7 @@ pub const CAR_CONFIG: VehicleConfig = VehicleConfig {
         y: -0.7,
         z: 0.0,
     },
+    scale: 1.0,
 };
 
 const TRAILER_LENGTH: f32 = 7.8768 / 2.0;
@@ -31,8 +32,8 @@ pub const TRAILER_CONFIG: VehicleConfig = VehicleConfig {
     wheelbase: 1.0 / 2.0,
     wheel_offset: -1.0,
     spring_offset: 1.0,
-    spring_power: 0.0,
-    shock: 0.0,
+    spring_power: 21.0,
+    shock: 45.0,
     max_speed: 0.0,
     max_force: 0.0,
     turn_radius: 0.0,
@@ -41,4 +42,5 @@ pub const TRAILER_CONFIG: VehicleConfig = VehicleConfig {
         y: -(0.18234 / 2.0),
         z: 0.0,
     },
+    scale: 1.0,
 };
