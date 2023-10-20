@@ -67,11 +67,7 @@ pub fn setup_physics(
         CarCamera,
     ));
 
-    // ground
-    let ground_size = 100.0;
-    let ground_height = 0.1;
-
-    let floor_texture_handle = asset_server.load("floor.png");
+    // sun
     commands.spawn((
         DirectionalLightBundle {
             transform: Transform::from_xyz(50.0, 100.0, 70.0).looking_at(Vec3::ZERO, Vec3::Y),
@@ -85,6 +81,12 @@ pub fn setup_physics(
         },
         Name::from("Sun"),
     ));
+
+    // ground
+    let ground_size = 100.0;
+    let ground_height = 0.1;
+
+    let floor_texture_handle = asset_server.load("floor.png");
     commands.spawn((
         Collider::cuboid(ground_size, ground_height, ground_size),
         Name::from("Floor"),
@@ -169,7 +171,7 @@ pub fn setup_physics(
                     },
                     RigidBody::Dynamic,
                     Collider::cuboid(0.5, 0.5, 0.5),
-                    Friction::coefficient(0.5),
+                    Friction::coefficient(1.0),
                     Name::from(format!("Box ({},{})", x, y)),
                 ));
             });

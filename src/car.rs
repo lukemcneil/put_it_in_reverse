@@ -481,7 +481,8 @@ fn calculate_tire_acceleration_and_braking_forces(
     rapier_context: Res<RapierContext>,
     mut add_forces: EventWriter<AddForce>,
     mut gamepad_evr: EventReader<GamepadEvent>,
-    mut multiplier: Local<f32>,
+    mut left_trigger: Local<f32>,
+    mut right_trigger: Local<f32>,
 ) {
     for (tire_transform, parent, tire) in &tires {
         let (parent_entity, parent_velocity, parent_config) = drivables.get(parent.get()).unwrap();
@@ -504,30 +505,35 @@ fn calculate_tire_acceleration_and_braking_forces(
             false,
             QueryFilter::only_fixed(),
         );
-        if keys.pressed(KeyCode::W) {
-            *multiplier = 1.0;
+        let mut multiplier = if keys.pressed(KeyCode::W) {
+            1.0
         } else if keys.pressed(KeyCode::S) {
-            *multiplier = -1.0;
-        } else if keys.just_released(KeyCode::W) || keys.just_released(KeyCode::S) {
-            *multiplier = 0.0;
+            -1.0
+        } else {
+            0.0
         };
         for ev in gamepad_evr.iter() {
             match ev {
                 GamepadEvent::Button(button_ev) => match button_ev.button_type {
                     GamepadButtonType::RightTrigger2 => {
-                        *multiplier = button_ev.value;
+                        *right_trigger = button_ev.value;
                     }
                     GamepadButtonType::LeftTrigger2 => {
-                        *multiplier = -button_ev.value;
+                        *left_trigger = -button_ev.value;
                     }
                     _ => (),
                 },
                 _ => (),
             }
         }
+        if *left_trigger != 0.0 {
+            multiplier = *left_trigger;
+        } else if *right_trigger != 0.0 {
+            multiplier = *right_trigger;
+        }
         if hit.is_some() && tire.connected_to_engine {
             add_forces.send(AddForce {
-                force: *multiplier * force_at_tire,
+                force: multiplier * force_at_tire,
                 point: tire_transform.translation(),
                 entity: parent_entity,
             });
