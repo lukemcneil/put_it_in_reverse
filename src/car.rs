@@ -48,18 +48,22 @@ pub struct Car;
 #[reflect(Component)]
 struct Drivable;
 
-#[derive(Component, Default, Reflect)]
+#[derive(Component, Reflect)]
 #[reflect(Component)]
-struct Tire {
-    connected_to_engine: bool,
-    location: TireLocation,
+pub struct Tire {
+    pub connected_to_engine: bool,
+    pub turns: bool,
+    pub grip: f32,
 }
 
-#[derive(Default, Reflect)]
-enum TireLocation {
-    Front,
-    #[default]
-    Back,
+impl Default for Tire {
+    fn default() -> Self {
+        Self {
+            connected_to_engine: false,
+            turns: false,
+            grip: 0.7,
+        }
+    }
 }
 
 #[derive(Component, Default, Reflect)]
@@ -81,6 +85,7 @@ pub struct VehicleConfig {
     pub max_force: f32,
     pub turn_radius: f32,
     pub anchor_point: Vec3,
+    pub scale: f32,
 }
 
 #[derive(Bundle, Default)]
@@ -156,7 +161,8 @@ pub fn spawn_car(
                 )),
                 tire: Tire {
                     connected_to_engine: true,
-                    location: TireLocation::Front,
+                    turns: true,
+                    grip: 0.7,
                 },
                 name: Name::from("Tire Front Right"),
             });
@@ -168,7 +174,8 @@ pub fn spawn_car(
                 )),
                 tire: Tire {
                     connected_to_engine: true,
-                    location: TireLocation::Front,
+                    turns: true,
+                    grip: 0.7,
                 },
                 name: Name::from("Tire Front Left"),
             });
@@ -630,7 +637,7 @@ fn turn_tires(
             }
         }
 
-        if let TireLocation::Front = tire.location {
+        if tire.turns {
             tire_transform.rotation =
                 Quat::from_axis_angle(Vec3::Y, multiplier * parent_config.turn_radius);
         }
@@ -648,13 +655,11 @@ fn calculate_tire_turning_forces(
         ),
         With<Drivable>,
     >,
-    tires: Query<(&GlobalTransform, &Parent), With<Tire>>,
+    tires: Query<(&Tire, &GlobalTransform, &Parent)>,
     rapier_context: Res<RapierContext>,
     mut add_forces: EventWriter<AddForce>,
 ) {
-    let tire_grip_strength = 0.7;
-
-    for (tire_transform, parent) in &tires {
+    for (tire, tire_transform, parent) in &tires {
         let (
             parent_entity,
             parent_transform,
@@ -676,7 +681,7 @@ fn calculate_tire_turning_forces(
                 parent_transform.translation,
             );
             let steering_velocity = steering_direction.dot(tire_velocity);
-            let desired_velocity_change = -steering_velocity * tire_grip_strength;
+            let desired_velocity_change = -steering_velocity * tire.grip;
             let desired_acceleration = desired_velocity_change * 60.0;
             add_forces.send(AddForce {
                 force: steering_direction * desired_acceleration * (car_mass.mass / 4.0),

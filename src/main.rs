@@ -1,5 +1,6 @@
 mod car;
 mod car_configs;
+mod ui;
 
 use std::f32::consts::PI;
 
@@ -11,7 +12,6 @@ use bevy::prelude::*;
 use bevy_inspector_egui::quick::WorldInspectorPlugin;
 use bevy_rapier3d::prelude::*;
 use car::{CameraPosition, Car};
-use car_configs::TRAILER_CONFIG;
 
 fn main() {
     App::new()
@@ -28,9 +28,9 @@ fn main() {
         .add_plugins((
             LogDiagnosticsPlugin::default(),
             FrameTimeDiagnosticsPlugin::default(),
-            WorldInspectorPlugin::default().run_if(input_toggle_active(true, KeyCode::Escape)),
+            WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
         ))
-        .add_plugins(car::CarPlugin)
+        .add_plugins((car::CarPlugin, ui::UIPlugin))
         .add_systems(Startup, setup_physics)
         .add_systems(Update, camera_follow_car)
         .run();
@@ -134,7 +134,7 @@ pub fn setup_physics(
         car_texture_handle.clone(),
     );
 
-    let trailer_config = TRAILER_CONFIG;
+    let trailer_config = car_configs::TRAILER_CONFIG;
     let trailer_entity = car::spawn_trailer(
         &mut commands,
         trailer_config.clone(),
