@@ -23,7 +23,7 @@ impl Plugin for CarPlugin {
                     reset_car,
                     (
                         sum_all_forces,
-                        draw_tire_force_gizmos.run_if(input_toggle_active(false, KeyCode::L)),
+                        draw_tire_force_gizmos.run_if(input_toggle_active(true, KeyCode::L)),
                     )
                         .after(calculate_tire_acceleration_and_braking_forces)
                         .after(calculate_tire_turning_forces)
@@ -144,7 +144,7 @@ pub fn spawn_car(
                 }),
                 transform: Transform::from_xyz(
                     vehicle_config.length + vehicle_config.anchor_point.x,
-                    10.,
+                    vehicle_config.height,
                     0.,
                 ),
                 global_transform: default(),
@@ -301,7 +301,7 @@ pub fn spawn_trailer(
                 }),
                 transform: Transform::from_xyz(
                     -vehicle_config.length - vehicle_config.anchor_point.x,
-                    10.0,
+                    vehicle_config.height,
                     0.0,
                 ),
                 global_transform: default(),
@@ -429,7 +429,7 @@ fn reset_car(
                 Some(_) => drivable_config.length + drivable_config.anchor_point.x,
                 None => -drivable_config.length - drivable_config.anchor_point.x,
             },
-            10.,
+            drivable_config.height,
             0.,
         );
 

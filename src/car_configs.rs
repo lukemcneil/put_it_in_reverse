@@ -33,7 +33,7 @@ pub const TRAILER_CONFIG: VehicleConfig = VehicleConfig {
     wheel_offset: -1.0,
     spring_offset: 1.0,
     spring_power: 21.0,
-    shock: 45.0,
+    shock: 5.0,
     max_speed: 0.0,
     max_force: 0.0,
     turn_radius: 0.0,
