@@ -71,8 +71,8 @@ pub fn setup_physics(
         DirectionalLightBundle {
             transform: Transform::from_xyz(50.0, 100.0, 70.0).looking_at(Vec3::ZERO, Vec3::Y),
             directional_light: DirectionalLight {
-                color: Color::rgb(31.0 / 255.0, 33.0 / 255.0, 45.0 / 255.0),
-                illuminance: 20000.0,
+                color: Color::rgb(225.0 / 255.0, 217.0 / 255.0, 201.0 / 255.0),
+                illuminance: 10000.0,
                 shadows_enabled: true,
                 ..default()
             },
