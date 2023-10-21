@@ -108,12 +108,14 @@ struct TireBundle {
     name: Name,
 }
 
-pub fn spawn_car(
+pub fn spawn_vehicle(
     commands: &mut Commands,
     vehicle_config: VehicleConfig,
     materials: &mut ResMut<Assets<StandardMaterial>>,
     meshes: &mut ResMut<Assets<Mesh>>,
     texture_handle: Handle<Image>,
+    name: &str,
+    is_car: bool,
 ) -> Entity {
     commands
         .spawn((
@@ -123,7 +125,7 @@ pub fn spawn_car(
                     vehicle_config.height,
                     vehicle_config.width,
                 ),
-                name: Name::from("Car"),
+                name: Name::from(name),
                 friction: Friction::coefficient(0.5),
                 vehicle_config,
                 ..default()
@@ -143,14 +145,17 @@ pub fn spawn_car(
                     ..default()
                 }),
                 transform: Transform::from_xyz(
-                    vehicle_config.length + vehicle_config.anchor_point.x,
+                    if is_car {
+                        vehicle_config.length + vehicle_config.anchor_point.x
+                    } else {
+                        -(vehicle_config.length + vehicle_config.anchor_point.x)
+                    },
                     vehicle_config.height,
                     0.,
                 ),
                 global_transform: default(),
                 ..default()
             },
-            Car,
         ))
         .with_children(|child_builder| {
             child_builder.spawn(TireBundle {
@@ -159,10 +164,14 @@ pub fn spawn_car(
                     -vehicle_config.height / 3.0,
                     vehicle_config.width,
                 )),
-                tire: Tire {
-                    connected_to_engine: true,
-                    turns: true,
-                    grip: 0.7,
+                tire: if is_car {
+                    Tire {
+                        connected_to_engine: true,
+                        turns: true,
+                        grip: 0.7,
+                    }
+                } else {
+                    Tire::default()
                 },
                 name: Name::from("Tire Front Right"),
             });
@@ -172,10 +181,14 @@ pub fn spawn_car(
                     -vehicle_config.height / 3.0,
                     -vehicle_config.width,
                 )),
-                tire: Tire {
-                    connected_to_engine: true,
-                    turns: true,
-                    grip: 0.7,
+                tire: if is_car {
+                    Tire {
+                        connected_to_engine: true,
+                        turns: true,
+                        grip: 0.7,
+                    }
+                } else {
+                    Tire::default()
                 },
                 name: Name::from("Tire Front Left"),
             });
@@ -198,153 +211,52 @@ pub fn spawn_car(
                 ..default()
             });
 
-            child_builder.spawn((
-                TransformBundle::from(
-                    Transform::from_xyz(-40.0, 40.0, 0.0)
-                        .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
-                ),
-                CameraPosition,
-                Name::from("Camera Desired Position"),
-            ));
+            if is_car {
+                child_builder.spawn((
+                    TransformBundle::from(
+                        Transform::from_xyz(-40.0, 40.0, 0.0)
+                            .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
+                    ),
+                    CameraPosition,
+                    Name::from("Camera Desired Position"),
+                ));
 
-            child_builder.spawn(SpotLightBundle {
-                spot_light: SpotLight {
-                    color: Color::rgb(225.0 / 255.0, 208.0 / 255.0, 182.0 / 255.0),
-                    intensity: 10000.0,
-                    range: 200.0,
-                    shadows_enabled: true,
-                    outer_angle: 0.5,
-                    ..default()
-                },
-                transform: Transform::from_xyz(vehicle_config.length, 0.0, -vehicle_config.width)
+                child_builder.spawn(SpotLightBundle {
+                    spot_light: SpotLight {
+                        color: Color::rgb(225.0 / 255.0, 208.0 / 255.0, 182.0 / 255.0),
+                        intensity: 10000.0,
+                        range: 200.0,
+                        shadows_enabled: true,
+                        outer_angle: 0.5,
+                        ..default()
+                    },
+                    transform: Transform::from_xyz(
+                        vehicle_config.length,
+                        0.0,
+                        -vehicle_config.width,
+                    )
                     .with_rotation(Quat::from_axis_angle(Vec3::Y, -PI / 2.0)),
-                ..default()
-            });
-            child_builder.spawn(SpotLightBundle {
-                spot_light: SpotLight {
-                    color: Color::rgb(225.0 / 255.0, 208.0 / 255.0, 182.0 / 255.0),
-                    intensity: 10000.0,
-                    range: 200.0,
-                    shadows_enabled: true,
-                    outer_angle: 0.5,
                     ..default()
-                },
-                transform: Transform::from_xyz(vehicle_config.length, 0.0, vehicle_config.width)
+                });
+                child_builder.spawn(SpotLightBundle {
+                    spot_light: SpotLight {
+                        color: Color::rgb(225.0 / 255.0, 208.0 / 255.0, 182.0 / 255.0),
+                        intensity: 10000.0,
+                        range: 200.0,
+                        shadows_enabled: true,
+                        outer_angle: 0.5,
+                        ..default()
+                    },
+                    transform: Transform::from_xyz(
+                        vehicle_config.length,
+                        0.0,
+                        vehicle_config.width,
+                    )
                     .with_rotation(Quat::from_axis_angle(Vec3::Y, -PI / 2.0)),
-                ..default()
-            });
-            child_builder.spawn(PbrBundle {
-                mesh: meshes.add(shape::Cube { size: 0.25 }.try_into().unwrap()),
-                material: materials.add(StandardMaterial {
-                    emissive: Color::RED,
                     ..default()
-                }),
-                transform: Transform::from_xyz(
-                    -vehicle_config.length,
-                    vehicle_config.height / 3.0,
-                    vehicle_config.width - 0.125,
-                )
-                .with_rotation(Quat::from_axis_angle(Vec3::Y, PI / 2.0)),
-                ..default()
-            });
-            child_builder.spawn(PbrBundle {
-                mesh: meshes.add(shape::Cube { size: 0.25 }.try_into().unwrap()),
-                material: materials.add(StandardMaterial {
-                    emissive: Color::RED,
-                    ..default()
-                }),
-                transform: Transform::from_xyz(
-                    -vehicle_config.length,
-                    vehicle_config.height / 3.0,
-                    -vehicle_config.width + 0.125,
-                )
-                .with_rotation(Quat::from_axis_angle(Vec3::Y, PI / 2.0)),
-                ..default()
-            });
-        })
-        .id()
-}
+                });
+            }
 
-pub fn spawn_trailer(
-    commands: &mut Commands,
-    vehicle_config: VehicleConfig,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
-    meshes: &mut ResMut<Assets<Mesh>>,
-    texture_handle: Handle<Image>,
-) -> Entity {
-    commands
-        .spawn((
-            DrivableBundle {
-                collider: Collider::cuboid(
-                    vehicle_config.length,
-                    vehicle_config.height,
-                    vehicle_config.width,
-                ),
-                name: Name::from("Trailer"),
-                friction: Friction::coefficient(0.5),
-                vehicle_config,
-                ..default()
-            },
-            MaterialMeshBundle {
-                mesh: meshes.add(Mesh::from(shape::Box {
-                    min_x: -vehicle_config.length,
-                    max_x: vehicle_config.length,
-                    min_y: -vehicle_config.height,
-                    max_y: vehicle_config.height,
-                    min_z: -vehicle_config.width,
-                    max_z: vehicle_config.width,
-                })),
-                material: materials.add(StandardMaterial {
-                    base_color_texture: Some(texture_handle.clone()),
-                    unlit: false,
-                    ..default()
-                }),
-                transform: Transform::from_xyz(
-                    -vehicle_config.length - vehicle_config.anchor_point.x,
-                    vehicle_config.height,
-                    0.0,
-                ),
-                global_transform: default(),
-                ..default()
-            },
-        ))
-        .with_children(|child_builder| {
-            child_builder.spawn(TireBundle {
-                transform_bundle: TransformBundle::from(Transform::from_xyz(
-                    vehicle_config.wheelbase + vehicle_config.wheel_offset,
-                    -vehicle_config.height / 3.0,
-                    vehicle_config.width,
-                )),
-                name: Name::from("Tire Front Right"),
-                ..default()
-            });
-            child_builder.spawn(TireBundle {
-                transform_bundle: TransformBundle::from(Transform::from_xyz(
-                    vehicle_config.wheelbase + vehicle_config.wheel_offset,
-                    -vehicle_config.height / 3.0,
-                    -vehicle_config.width,
-                )),
-                name: Name::from("Tire Front Left"),
-                ..default()
-            });
-            child_builder.spawn(TireBundle {
-                transform_bundle: TransformBundle::from(Transform::from_xyz(
-                    -vehicle_config.wheelbase + vehicle_config.wheel_offset,
-                    -vehicle_config.height / 3.0,
-                    vehicle_config.width,
-                )),
-                name: Name::from("Tire Back Right"),
-                ..default()
-            });
-            child_builder.spawn(TireBundle {
-                transform_bundle: TransformBundle::from(Transform::from_xyz(
-                    -vehicle_config.wheelbase + vehicle_config.wheel_offset,
-                    -vehicle_config.height / 3.0,
-                    -vehicle_config.width,
-                )),
-                name: Name::from("Tire Back Left"),
-                ..default()
-            });
             child_builder.spawn(PbrBundle {
                 mesh: meshes.add(shape::Cube { size: 0.25 }.try_into().unwrap()),
                 material: materials.add(StandardMaterial {

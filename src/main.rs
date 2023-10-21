@@ -126,21 +126,26 @@ pub fn setup_physics(
     let car_texture_handle = asset_server.load("car.png");
     // car and trailer
     let car_config = car_configs::CAR_CONFIG;
-    let car_entity = car::spawn_car(
+    let car_entity = car::spawn_vehicle(
         &mut commands,
         car_config.clone(),
         &mut materials,
         &mut meshes,
         car_texture_handle.clone(),
+        "Car",
+        true,
     );
+    commands.entity(car_entity).insert(Car);
 
     let trailer_config = car_configs::TRAILER_CONFIG;
-    let trailer_entity = car::spawn_trailer(
+    let trailer_entity = car::spawn_vehicle(
         &mut commands,
         trailer_config.clone(),
         &mut materials,
         &mut meshes,
         car_texture_handle,
+        "Trailer",
+        false,
     );
 
     let joint = SphericalJointBuilder::new()
