@@ -4,8 +4,6 @@ mod ui;
 
 use std::f32::consts::PI;
 
-use bevy::core_pipeline::bloom::{BloomCompositeMode, BloomSettings};
-use bevy::core_pipeline::tonemapping::Tonemapping;
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
@@ -50,20 +48,21 @@ pub fn setup_physics(
     commands.spawn((
         Camera3dBundle {
             camera: Camera {
-                hdr: true,
+                // took this out as it seemed to slow things down in web builds
+                // hdr: true,
                 ..default()
             },
             transform: Transform::from_xyz(-50.0, 50.0, 0.0)
                 .looking_at(Vec3::new(0.0, 0.0, 0.0), Vec3::Y),
-            tonemapping: Tonemapping::TonyMcMapface,
+            // tonemapping: Tonemapping::TonyMcMapface,
             ..default()
         },
-        BloomSettings {
-            intensity: 0.15,
-            low_frequency_boost: 0.1,
-            composite_mode: BloomCompositeMode::Additive,
-            ..default()
-        },
+        // BloomSettings {
+        //     intensity: 0.15,
+        //     low_frequency_boost: 0.1,
+        //     composite_mode: BloomCompositeMode::Additive,
+        //     ..default()
+        // },
         CarCamera,
     ));
 
@@ -125,7 +124,7 @@ pub fn setup_physics(
 
     let car_texture_handle = asset_server.load("car.png");
     // car and trailer
-    let car_config = car_configs::CAR_CONFIG;
+    let car_config = car_configs::DRIFTER_CONFIG;
     let car_entity = car::spawn_vehicle(
         &mut commands,
         car_config.clone(),
@@ -137,7 +136,7 @@ pub fn setup_physics(
     );
     commands.entity(car_entity).insert(Car);
 
-    let trailer_config = car_configs::TRAILER_CONFIG;
+    let trailer_config = car_configs::DRIFTER_TRAILER_CONFIG;
     let trailer_entity = car::spawn_vehicle(
         &mut commands,
         trailer_config.clone(),

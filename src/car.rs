@@ -86,6 +86,7 @@ pub struct VehicleConfig {
     pub turn_radius: f32,
     pub anchor_point: Vec3,
     pub scale: f32,
+    pub starting_tire_grip: f32,
 }
 
 #[derive(Bundle, Default)]
@@ -161,53 +162,67 @@ pub fn spawn_vehicle(
             child_builder.spawn(TireBundle {
                 transform_bundle: TransformBundle::from(Transform::from_xyz(
                     vehicle_config.wheelbase + vehicle_config.wheel_offset,
-                    -vehicle_config.height / 3.0,
+                    -vehicle_config.height / 6.0,
                     vehicle_config.width,
                 )),
                 tire: if is_car {
                     Tire {
                         connected_to_engine: true,
                         turns: true,
-                        grip: 0.7,
+                        grip: vehicle_config.starting_tire_grip,
                     }
                 } else {
-                    Tire::default()
+                    Tire {
+                        grip: vehicle_config.starting_tire_grip,
+                        ..default()
+                    }
                 },
                 name: Name::from("Tire Front Right"),
             });
             child_builder.spawn(TireBundle {
                 transform_bundle: TransformBundle::from(Transform::from_xyz(
                     vehicle_config.wheelbase + vehicle_config.wheel_offset,
-                    -vehicle_config.height / 3.0,
+                    -vehicle_config.height / 6.0,
                     -vehicle_config.width,
                 )),
                 tire: if is_car {
                     Tire {
                         connected_to_engine: true,
                         turns: true,
-                        grip: 0.7,
+                        grip: vehicle_config.starting_tire_grip,
                     }
                 } else {
-                    Tire::default()
+                    Tire {
+                        grip: vehicle_config.starting_tire_grip,
+                        ..default()
+                    }
                 },
                 name: Name::from("Tire Front Left"),
             });
             child_builder.spawn(TireBundle {
                 transform_bundle: TransformBundle::from(Transform::from_xyz(
                     -vehicle_config.wheelbase + vehicle_config.wheel_offset,
-                    -vehicle_config.height / 3.0,
+                    -vehicle_config.height / 6.0,
                     vehicle_config.width,
                 )),
                 name: Name::from("Tire Back Right"),
+                tire: Tire {
+                    grip: vehicle_config.starting_tire_grip,
+                    ..default()
+                },
                 ..default()
             });
             child_builder.spawn(TireBundle {
                 transform_bundle: TransformBundle::from(Transform::from_xyz(
                     -vehicle_config.wheelbase + vehicle_config.wheel_offset,
-                    -vehicle_config.height / 3.0,
+                    -vehicle_config.height / 6.0,
                     -vehicle_config.width,
                 )),
                 name: Name::from("Tire Back Left"),
+                tire: Tire {
+                    grip: vehicle_config.starting_tire_grip,
+                    ..default()
+                },
                 ..default()
             });
 
