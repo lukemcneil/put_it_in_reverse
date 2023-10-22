@@ -16,10 +16,13 @@ impl Plugin for CarPlugin {
                 Update,
                 (
                     turn_tires,
-                    calculate_tire_acceleration_and_braking_forces,
-                    calculate_tire_turning_forces,
-                    calculate_tire_suspension_forces,
-                    calculate_tire_friction,
+                    calculate_tire_distances_to_ground,
+                    calculate_tire_acceleration_and_braking_forces
+                        .after(calculate_tire_distances_to_ground),
+                    calculate_tire_turning_forces.after(calculate_tire_distances_to_ground),
+                    calculate_tire_suspension_forces.after(calculate_tire_distances_to_ground),
+                    calculate_tire_friction.after(calculate_tire_distances_to_ground),
+                    move_tires_to_ground.after(calculate_tire_distances_to_ground),
                     reset_car,
                     (
                         sum_all_forces,
@@ -29,7 +32,6 @@ impl Plugin for CarPlugin {
                         .after(calculate_tire_turning_forces)
                         .after(calculate_tire_suspension_forces)
                         .after(calculate_tire_friction),
-                    draw_tire_gizmos,
                 ),
             )
             .register_type::<Car>()
@@ -54,6 +56,7 @@ pub struct Tire {
     pub connected_to_engine: bool,
     pub turns: bool,
     pub grip: f32,
+    pub distance_to_ground: Option<f32>,
 }
 
 impl Default for Tire {
@@ -62,6 +65,7 @@ impl Default for Tire {
             connected_to_engine: false,
             turns: false,
             grip: 0.7,
+            distance_to_ground: None,
         }
     }
 }
@@ -107,6 +111,7 @@ struct TireBundle {
     transform_bundle: TransformBundle,
     tire: Tire,
     name: Name,
+    visibility: VisibilityBundle,
 }
 
 pub fn spawn_vehicle(
@@ -115,6 +120,7 @@ pub fn spawn_vehicle(
     materials: &mut ResMut<Assets<StandardMaterial>>,
     meshes: &mut ResMut<Assets<Mesh>>,
     texture_handle: Handle<Image>,
+    tire_material: Handle<StandardMaterial>,
     name: &str,
     is_car: bool,
 ) -> Entity {
@@ -159,72 +165,104 @@ pub fn spawn_vehicle(
             },
         ))
         .with_children(|child_builder| {
-            child_builder.spawn(TireBundle {
-                transform_bundle: TransformBundle::from(Transform::from_xyz(
-                    vehicle_config.wheelbase + vehicle_config.wheel_offset,
-                    -vehicle_config.height / 6.0,
-                    vehicle_config.width,
-                )),
-                tire: if is_car {
-                    Tire {
-                        connected_to_engine: true,
-                        turns: true,
-                        grip: vehicle_config.starting_tire_grip,
-                    }
-                } else {
-                    Tire {
+            let tire_mesh = meshes.add(Mesh::from(shape::Cylinder {
+                radius: 0.5,
+                height: 0.5,
+                ..default()
+            }));
+            let get_tire_material_mesh_bundle = || MaterialMeshBundle {
+                mesh: tire_mesh.clone(),
+                material: tire_material.clone(),
+                transform: Transform::from_rotation(Quat::from_axis_angle(Vec3::X, PI / 2.0)),
+                ..default()
+            };
+            child_builder
+                .spawn(TireBundle {
+                    transform_bundle: TransformBundle::from(Transform::from_xyz(
+                        vehicle_config.wheelbase + vehicle_config.wheel_offset,
+                        -vehicle_config.height / 6.0,
+                        vehicle_config.width * 1.1,
+                    )),
+                    tire: if is_car {
+                        Tire {
+                            connected_to_engine: true,
+                            turns: true,
+                            grip: vehicle_config.starting_tire_grip,
+                            ..default()
+                        }
+                    } else {
+                        Tire {
+                            grip: vehicle_config.starting_tire_grip,
+                            ..default()
+                        }
+                    },
+                    name: Name::from("Tire Front Right"),
+                    ..default()
+                })
+                .with_children(|tire_child_builder| {
+                    tire_child_builder.spawn(get_tire_material_mesh_bundle());
+                });
+            child_builder
+                .spawn(TireBundle {
+                    transform_bundle: TransformBundle::from(Transform::from_xyz(
+                        vehicle_config.wheelbase + vehicle_config.wheel_offset,
+                        -vehicle_config.height / 6.0,
+                        -vehicle_config.width * 1.1,
+                    )),
+                    tire: if is_car {
+                        Tire {
+                            connected_to_engine: true,
+                            turns: true,
+                            grip: vehicle_config.starting_tire_grip,
+                            ..default()
+                        }
+                    } else {
+                        Tire {
+                            grip: vehicle_config.starting_tire_grip,
+                            ..default()
+                        }
+                    },
+                    name: Name::from("Tire Front Left"),
+                    ..default()
+                })
+                .with_children(|tire_child_builder| {
+                    tire_child_builder.spawn(get_tire_material_mesh_bundle());
+                });
+            child_builder
+                .spawn(TireBundle {
+                    transform_bundle: TransformBundle::from(Transform::from_xyz(
+                        -vehicle_config.wheelbase + vehicle_config.wheel_offset,
+                        -vehicle_config.height / 6.0,
+                        vehicle_config.width * 1.1,
+                    )),
+                    name: Name::from("Tire Back Right"),
+                    tire: Tire {
                         grip: vehicle_config.starting_tire_grip,
                         ..default()
-                    }
-                },
-                name: Name::from("Tire Front Right"),
-            });
-            child_builder.spawn(TireBundle {
-                transform_bundle: TransformBundle::from(Transform::from_xyz(
-                    vehicle_config.wheelbase + vehicle_config.wheel_offset,
-                    -vehicle_config.height / 6.0,
-                    -vehicle_config.width,
-                )),
-                tire: if is_car {
-                    Tire {
-                        connected_to_engine: true,
-                        turns: true,
-                        grip: vehicle_config.starting_tire_grip,
-                    }
-                } else {
-                    Tire {
+                    },
+                    ..default()
+                })
+                .with_children(|tire_child_builder| {
+                    tire_child_builder.spawn(get_tire_material_mesh_bundle());
+                });
+
+            child_builder
+                .spawn(TireBundle {
+                    transform_bundle: TransformBundle::from(Transform::from_xyz(
+                        -vehicle_config.wheelbase + vehicle_config.wheel_offset,
+                        -vehicle_config.height / 6.0,
+                        -vehicle_config.width * 1.1,
+                    )),
+                    name: Name::from("Tire Back Left"),
+                    tire: Tire {
                         grip: vehicle_config.starting_tire_grip,
                         ..default()
-                    }
-                },
-                name: Name::from("Tire Front Left"),
-            });
-            child_builder.spawn(TireBundle {
-                transform_bundle: TransformBundle::from(Transform::from_xyz(
-                    -vehicle_config.wheelbase + vehicle_config.wheel_offset,
-                    -vehicle_config.height / 6.0,
-                    vehicle_config.width,
-                )),
-                name: Name::from("Tire Back Right"),
-                tire: Tire {
-                    grip: vehicle_config.starting_tire_grip,
+                    },
                     ..default()
-                },
-                ..default()
-            });
-            child_builder.spawn(TireBundle {
-                transform_bundle: TransformBundle::from(Transform::from_xyz(
-                    -vehicle_config.wheelbase + vehicle_config.wheel_offset,
-                    -vehicle_config.height / 6.0,
-                    -vehicle_config.width,
-                )),
-                name: Name::from("Tire Back Left"),
-                tire: Tire {
-                    grip: vehicle_config.starting_tire_grip,
-                    ..default()
-                },
-                ..default()
-            });
+                })
+                .with_children(|tire_child_builder| {
+                    tire_child_builder.spawn(get_tire_material_mesh_bundle());
+                });
 
             if is_car {
                 child_builder.spawn((
@@ -371,15 +409,13 @@ fn reset_car(
     }
 }
 
-fn calculate_tire_suspension_forces(
-    tires: Query<(&GlobalTransform, &Parent), With<Tire>>,
-    drivables: Query<(Entity, &Velocity, &Transform, &VehicleConfig), With<Drivable>>,
+fn calculate_tire_distances_to_ground(
+    mut tires: Query<(&GlobalTransform, &Parent, &mut Tire)>,
+    drivables: Query<&VehicleConfig, With<Drivable>>,
     rapier_context: Res<RapierContext>,
-    mut add_forces: EventWriter<AddForce>,
 ) {
-    for (tire_transform, parent) in &tires {
-        let (parent_entity, parent_velocity, parent_transform, parent_config) =
-            drivables.get(parent.get()).unwrap();
+    for (tire_transform, parent, mut tire) in &mut tires {
+        let parent_config = drivables.get(parent.get()).unwrap();
         let hit = rapier_context.cast_ray(
             tire_transform.translation(),
             tire_transform.down(),
@@ -388,6 +424,22 @@ fn calculate_tire_suspension_forces(
             QueryFilter::only_fixed(),
         );
         if let Some((_, hit_distance)) = hit {
+            tire.distance_to_ground = Some(hit_distance);
+        } else {
+            tire.distance_to_ground = None;
+        }
+    }
+}
+
+fn calculate_tire_suspension_forces(
+    tires: Query<(&GlobalTransform, &Parent, &Tire)>,
+    drivables: Query<(Entity, &Velocity, &Transform, &VehicleConfig), With<Drivable>>,
+    mut add_forces: EventWriter<AddForce>,
+) {
+    for (tire_transform, parent, tire) in &tires {
+        let (parent_entity, parent_velocity, parent_transform, parent_config) =
+            drivables.get(parent.get()).unwrap();
+        if let Some(hit_distance) = tire.distance_to_ground {
             let spring_direction = tire_transform.up();
             let tire_velocity = parent_velocity.linear_velocity_at_point(
                 tire_transform.translation(),
@@ -425,7 +477,6 @@ fn calculate_tire_acceleration_and_braking_forces(
     keys: Res<Input<KeyCode>>,
     tires: Query<(&GlobalTransform, &Parent, &Tire)>,
     drivables: Query<(Entity, &Velocity, &VehicleConfig), With<Drivable>>,
-    rapier_context: Res<RapierContext>,
     mut add_forces: EventWriter<AddForce>,
     mut gamepad_evr: EventReader<GamepadEvent>,
     mut left_trigger: Local<f32>,
@@ -445,13 +496,6 @@ fn calculate_tire_acceleration_and_braking_forces(
                 0.0,
                 0.0,
             ));
-        let hit = rapier_context.cast_ray(
-            tire_transform.translation(),
-            tire_transform.down(),
-            parent_config.spring_offset,
-            false,
-            QueryFilter::only_fixed(),
-        );
         let mut multiplier = if keys.pressed(KeyCode::W) {
             1.0
         } else if keys.pressed(KeyCode::S) {
@@ -478,7 +522,7 @@ fn calculate_tire_acceleration_and_braking_forces(
         } else if *right_trigger != 0.0 {
             multiplier = *right_trigger;
         }
-        if hit.is_some() && tire.connected_to_engine {
+        if tire.distance_to_ground.is_some() && tire.connected_to_engine {
             add_forces.send(AddForce {
                 force: multiplier * force_at_tire,
                 point: tire_transform.translation(),
@@ -490,36 +534,14 @@ fn calculate_tire_acceleration_and_braking_forces(
 
 fn calculate_tire_friction(
     tires: Query<(&GlobalTransform, &Parent, &Tire)>,
-    drivables: Query<
-        (
-            Entity,
-            &Velocity,
-            &Transform,
-            &ReadMassProperties,
-            &VehicleConfig,
-        ),
-        With<Drivable>,
-    >,
-    rapier_context: Res<RapierContext>,
+    drivables: Query<(Entity, &Velocity, &Transform, &ReadMassProperties), With<Drivable>>,
     mut add_forces: EventWriter<AddForce>,
 ) {
     let coefficient_of_friction = 0.5;
     for (tire_transform, parent, tire) in &tires {
-        let (
-            parent_entity,
-            parent_velocity,
-            parent_transform,
-            ReadMassProperties(mass_properties),
-            parent_config,
-        ) = drivables.get(parent.get()).unwrap();
-        let hit = rapier_context.cast_ray(
-            tire_transform.translation(),
-            tire_transform.down(),
-            parent_config.spring_offset,
-            false,
-            QueryFilter::only_fixed(),
-        );
-        if hit.is_some() && tire.connected_to_engine {
+        let (parent_entity, parent_velocity, parent_transform, ReadMassProperties(mass_properties)) =
+            drivables.get(parent.get()).unwrap();
+        if tire.distance_to_ground.is_some() && tire.connected_to_engine {
             if parent_velocity.linvel.length() > 0.0 {
                 let tire_velocity = parent_velocity.linear_velocity_at_point(
                     tire_transform.translation(),
@@ -585,36 +607,14 @@ fn turn_tires(
 }
 
 fn calculate_tire_turning_forces(
-    drivables: Query<
-        (
-            Entity,
-            &Transform,
-            &Velocity,
-            &ReadMassProperties,
-            &VehicleConfig,
-        ),
-        With<Drivable>,
-    >,
+    drivables: Query<(Entity, &Transform, &Velocity, &ReadMassProperties), With<Drivable>>,
     tires: Query<(&Tire, &GlobalTransform, &Parent)>,
-    rapier_context: Res<RapierContext>,
     mut add_forces: EventWriter<AddForce>,
 ) {
     for (tire, tire_transform, parent) in &tires {
-        let (
-            parent_entity,
-            parent_transform,
-            parent_velocity,
-            ReadMassProperties(car_mass),
-            parent_config,
-        ) = drivables.get(parent.get()).unwrap();
-        let hit = rapier_context.cast_ray(
-            tire_transform.translation(),
-            tire_transform.down(),
-            parent_config.spring_offset,
-            false,
-            QueryFilter::only_fixed(),
-        );
-        if hit.is_some() {
+        let (parent_entity, parent_transform, parent_velocity, ReadMassProperties(car_mass)) =
+            drivables.get(parent.get()).unwrap();
+        if tire.distance_to_ground.is_some() {
             let steering_direction = tire_transform.compute_transform().forward();
             let tire_velocity = parent_velocity.linear_velocity_at_point(
                 tire_transform.translation(),
@@ -672,17 +672,20 @@ fn draw_tire_force_gizmos(mut add_forces: EventReader<AddForce>, mut gizmos: Giz
     }
 }
 
-fn draw_tire_gizmos(mut gizmos: Gizmos, tires: Query<(&GlobalTransform, &Tire)>) {
-    for (global_transform, tire) in &tires {
-        gizmos.sphere(
-            global_transform.translation(),
-            Quat::IDENTITY,
-            0.3,
-            if tire.connected_to_engine {
-                Color::RED
+fn move_tires_to_ground(
+    tires: Query<(&Parent, &Children, &Tire)>,
+    drivables: Query<&VehicleConfig, With<Drivable>>,
+    mut transforms: Query<&mut Transform>,
+) {
+    for (tire_parent, tire_child, tire) in &tires {
+        let parent_config = drivables.get(tire_parent.get()).unwrap();
+        for child in tire_child.iter() {
+            let mut x = transforms.get_mut(*child).unwrap();
+            if let Some(hit_distance) = tire.distance_to_ground {
+                x.translation.y = -hit_distance + 0.5;
             } else {
-                Color::BLACK
-            },
-        );
+                x.translation.y = -parent_config.spring_offset + 0.5;
+            }
+        }
     }
 }

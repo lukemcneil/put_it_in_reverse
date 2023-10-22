@@ -123,6 +123,10 @@ pub fn setup_physics(
     ));
 
     let car_texture_handle = asset_server.load("car.png");
+    let tire_material = materials.add(StandardMaterial {
+        base_color: Color::BLACK,
+        ..default()
+    });
     // car and trailer
     let car_config = car_configs::DRIFTER_CONFIG;
     let car_entity = car::spawn_vehicle(
@@ -131,6 +135,7 @@ pub fn setup_physics(
         &mut materials,
         &mut meshes,
         car_texture_handle.clone(),
+        tire_material.clone(),
         "Car",
         true,
     );
@@ -142,7 +147,8 @@ pub fn setup_physics(
         trailer_config.clone(),
         &mut materials,
         &mut meshes,
-        car_texture_handle,
+        car_texture_handle.clone(),
+        tire_material.clone(),
         "Trailer",
         false,
     );
