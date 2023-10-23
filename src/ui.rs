@@ -12,7 +12,7 @@ impl Plugin for UIPlugin {
     fn build(&self, app: &mut App) {
         app.add_systems(
             Update,
-            config_ui_system.run_if(input_toggle_active(true, KeyCode::Escape)),
+            config_ui_system.run_if(input_toggle_active(false, KeyCode::Escape)),
         );
     }
 }
