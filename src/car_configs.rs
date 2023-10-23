@@ -8,8 +8,8 @@ pub const CAR_CONFIG: VehicleConfig = VehicleConfig {
     height: 1.452024 / 2.0,
     width: 2.02946 / 2.0,
     length: CAR_LENGTH,
-    wheelbase: 3.11912 / 2.0,
-    wheel_offset: 0.0,
+    wheelbase: 3.61912 / 2.0,
+    wheel_offset: 0.2,
     spring_offset: 1.252926,
     spring_power: 300.0,
     shock: 45.0,
@@ -49,7 +49,9 @@ pub const TRAILER_CONFIG: VehicleConfig = VehicleConfig {
     starting_tire_grip: 0.7,
 };
 
+#[allow(dead_code)]
 const DRIFTER_LENGTH: f32 = 3.31114 / 2.0;
+#[allow(dead_code)]
 pub const DRIFTER_CONFIG: VehicleConfig = VehicleConfig {
     height: 1.252024 / 2.0,
     width: 2.02946 / 2.0,
@@ -71,8 +73,11 @@ pub const DRIFTER_CONFIG: VehicleConfig = VehicleConfig {
     starting_tire_grip: 0.03,
 };
 
+#[allow(dead_code)]
 const DRIFTER_TRAILER_LENGTH: f32 = 2.8768 / 2.0;
+#[allow(dead_code)]
 const DRIFTER_TRAILER_WIDTH: f32 = 2.159 / 2.0;
+#[allow(dead_code)]
 pub const DRIFTER_TRAILER_CONFIG: VehicleConfig = VehicleConfig {
     height: 0.18234 / 2.0,
     width: DRIFTER_TRAILER_WIDTH,

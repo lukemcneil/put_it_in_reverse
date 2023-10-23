@@ -128,7 +128,7 @@ pub fn setup_physics(
         ..default()
     });
     // car and trailer
-    let car_config = car_configs::DRIFTER_CONFIG;
+    let car_config = car_configs::CAR_CONFIG;
     let car_entity = car::spawn_vehicle(
         &mut commands,
         car_config.clone(),
@@ -138,10 +138,11 @@ pub fn setup_physics(
         tire_material.clone(),
         "Car",
         true,
+        &asset_server,
     );
     commands.entity(car_entity).insert(Car);
 
-    let trailer_config = car_configs::DRIFTER_TRAILER_CONFIG;
+    let trailer_config = car_configs::TRAILER_CONFIG;
     let trailer_entity = car::spawn_vehicle(
         &mut commands,
         trailer_config.clone(),
@@ -151,6 +152,7 @@ pub fn setup_physics(
         tire_material.clone(),
         "Trailer",
         false,
+        &asset_server,
     );
 
     let joint = SphericalJointBuilder::new()

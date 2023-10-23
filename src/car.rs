@@ -123,6 +123,7 @@ pub fn spawn_vehicle(
     tire_material: Handle<StandardMaterial>,
     name: &str,
     is_car: bool,
+    asset_server: &Res<AssetServer>,
 ) -> Entity {
     commands
         .spawn((
@@ -138,14 +139,15 @@ pub fn spawn_vehicle(
                 ..default()
             },
             MaterialMeshBundle {
-                mesh: meshes.add(Mesh::from(shape::Box {
-                    min_x: -vehicle_config.length,
-                    max_x: vehicle_config.length,
-                    min_y: -vehicle_config.height,
-                    max_y: vehicle_config.height,
-                    min_z: -vehicle_config.width,
-                    max_z: vehicle_config.width,
-                })),
+                //     mesh: meshes.add(Mesh::from(shape::Box {
+                //         min_x: -vehicle_config.length,
+                //         max_x: vehicle_config.length,
+                //         min_y: -vehicle_config.height,
+                //         max_y: vehicle_config.height,
+                //         min_z: -vehicle_config.width,
+                //         max_z: vehicle_config.width,
+                //     }
+                // )),
                 material: materials.add(StandardMaterial {
                     base_color_texture: Some(texture_handle.clone()),
                     unlit: false,
@@ -336,6 +338,16 @@ pub fn spawn_vehicle(
                     -vehicle_config.width + 0.125,
                 )
                 .with_rotation(Quat::from_axis_angle(Vec3::Y, PI / 2.0)),
+                ..default()
+            });
+            child_builder.spawn(SceneBundle {
+                scene: if is_car {
+                    asset_server.load("scene.gltf#Scene0")
+                } else {
+                    asset_server.load("trailer_model.gltf#Scene0")
+                },
+                transform: Transform::from_xyz(0.0, 0.0, 0.0)
+                    .with_scale(Vec3::new(70.0, 70.0, 70.0)),
                 ..default()
             });
         })
