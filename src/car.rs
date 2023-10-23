@@ -3,9 +3,11 @@ use std::f32::consts::PI;
 use bevy::{
     input::{common_conditions::input_toggle_active, gamepad::GamepadEvent},
     prelude::*,
-    utils::HashMap,
+    utils::{HashMap, HashSet},
 };
 use bevy_rapier3d::prelude::*;
+
+use crate::car_configs;
 
 pub struct CarPlugin;
 
@@ -34,6 +36,7 @@ impl Plugin for CarPlugin {
                         .after(calculate_tire_friction),
                 ),
             )
+            .register_type::<ID>()
             .register_type::<Car>()
             .register_type::<Drivable>()
             .register_type::<Tire>()
@@ -42,13 +45,17 @@ impl Plugin for CarPlugin {
     }
 }
 
+#[derive(Component, Default, Reflect, Deref, DerefMut)]
+#[reflect(Component)]
+pub struct ID(pub i32);
+
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]
 pub struct Car;
 
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]
-struct Drivable;
+pub struct Drivable;
 
 #[derive(Component, Reflect)]
 #[reflect(Component)]
@@ -104,6 +111,7 @@ struct DrivableBundle {
     name: Name,
     friction: Friction,
     vehicle_config: VehicleConfig,
+    id: ID,
 }
 
 #[derive(Bundle, Default)]
@@ -112,6 +120,51 @@ struct TireBundle {
     tire: Tire,
     name: Name,
     visibility: VisibilityBundle,
+}
+
+pub fn spawn_vehicle_and_trailer(
+    commands: &mut Commands,
+    materials: &mut ResMut<Assets<StandardMaterial>>,
+    meshes: &mut ResMut<Assets<Mesh>>,
+    texture_handle: Handle<Image>,
+    tire_material: Handle<StandardMaterial>,
+    name: &str,
+    gamepad_id: i32,
+) {
+    let car_config = car_configs::DRIFTER_CONFIG;
+    let car_entity = spawn_vehicle(
+        commands,
+        car_config.clone(),
+        materials,
+        meshes,
+        texture_handle.clone(),
+        tire_material.clone(),
+        format!("Car {}", name).as_str(),
+        true,
+        gamepad_id,
+    );
+    commands.entity(car_entity).insert(Car);
+
+    let trailer_config = car_configs::DRIFTER_TRAILER_CONFIG;
+    let trailer_entity = spawn_vehicle(
+        commands,
+        trailer_config.clone(),
+        materials,
+        meshes,
+        texture_handle.clone(),
+        tire_material.clone(),
+        format!("Trailer {}", name).as_str(),
+        false,
+        gamepad_id,
+    );
+
+    let joint = SphericalJointBuilder::new()
+        .local_anchor1(car_config.anchor_point)
+        .local_anchor2(trailer_config.anchor_point);
+    commands
+        .get_entity(trailer_entity)
+        .unwrap()
+        .insert(ImpulseJoint::new(car_entity, joint));
 }
 
 pub fn spawn_vehicle(
@@ -123,6 +176,7 @@ pub fn spawn_vehicle(
     tire_material: Handle<StandardMaterial>,
     name: &str,
     is_car: bool,
+    gamepad_id: i32,
 ) -> Entity {
     commands
         .spawn((
@@ -135,6 +189,7 @@ pub fn spawn_vehicle(
                 name: Name::from(name),
                 friction: Friction::coefficient(0.5),
                 vehicle_config,
+                id: ID(gamepad_id),
                 ..default()
             },
             MaterialMeshBundle {
@@ -158,7 +213,7 @@ pub fn spawn_vehicle(
                         -(vehicle_config.length + vehicle_config.anchor_point.x)
                     },
                     vehicle_config.height,
-                    0.,
+                    (gamepad_id as f32) * 10.0,
                 ),
                 global_transform: default(),
                 ..default()
@@ -358,12 +413,13 @@ fn reset_car(
             &mut Velocity,
             Option<&Car>,
             &mut ExternalForce,
+            &ID,
         ),
         With<Drivable>,
     >,
     mut gamepad_evr: EventReader<GamepadEvent>,
 ) {
-    let mut should_respawn = keys.just_pressed(KeyCode::R);
+    let mut should_respawn_gamepads = HashSet::new();
     for ev in gamepad_evr.iter() {
         match ev {
             GamepadEvent::Button(button_ev) => {
@@ -372,7 +428,7 @@ fn reset_car(
                 }
                 match button_ev.button_type {
                     GamepadButtonType::Start => {
-                        should_respawn = true;
+                        should_respawn_gamepads.insert(button_ev.gamepad.id);
                     }
                     _ => (),
                 }
@@ -380,22 +436,27 @@ fn reset_car(
             _ => (),
         }
     }
-
     for (
         mut drivable_transform,
         drivable_config,
         mut drivable_velocity,
         maybe_car,
         mut external_force,
+        id,
     ) in &mut drivables
     {
+        let should_respawn = if id.0 == -1 {
+            keys.just_pressed(KeyCode::R)
+        } else {
+            should_respawn_gamepads.contains(&(id.0 as usize))
+        };
         let reseted_tranform = Transform::from_xyz(
             match maybe_car {
                 Some(_) => drivable_config.length + drivable_config.anchor_point.x,
                 None => -drivable_config.length - drivable_config.anchor_point.x,
             },
             drivable_config.height,
-            0.,
+            (id.0 as f32) * 10.0,
         );
 
         if should_respawn {
@@ -476,14 +537,29 @@ fn lookup_power(velocity: Velocity, max_speed: f32, max_force: f32) -> f32 {
 fn calculate_tire_acceleration_and_braking_forces(
     keys: Res<Input<KeyCode>>,
     tires: Query<(&GlobalTransform, &Parent, &Tire)>,
-    drivables: Query<(Entity, &Velocity, &VehicleConfig), With<Drivable>>,
+    drivables: Query<(Entity, &Velocity, &VehicleConfig, &ID), With<Drivable>>,
     mut add_forces: EventWriter<AddForce>,
     mut gamepad_evr: EventReader<GamepadEvent>,
-    mut left_trigger: Local<f32>,
-    mut right_trigger: Local<f32>,
+    mut left_trigger: Local<HashMap<i32, f32>>,
+    mut right_trigger: Local<HashMap<i32, f32>>,
 ) {
+    for ev in gamepad_evr.iter() {
+        match ev {
+            GamepadEvent::Button(button_ev) => match button_ev.button_type {
+                GamepadButtonType::RightTrigger2 => {
+                    right_trigger.insert(button_ev.gamepad.id as i32, button_ev.value);
+                }
+                GamepadButtonType::LeftTrigger2 => {
+                    left_trigger.insert(button_ev.gamepad.id as i32, -button_ev.value);
+                }
+                _ => (),
+            },
+            _ => (),
+        }
+    }
     for (tire_transform, parent, tire) in &tires {
-        let (parent_entity, parent_velocity, parent_config) = drivables.get(parent.get()).unwrap();
+        let (parent_entity, parent_velocity, parent_config, parent_id) =
+            drivables.get(parent.get()).unwrap();
         let force_at_tire = tire_transform
             .compute_transform()
             .rotation
@@ -496,31 +572,25 @@ fn calculate_tire_acceleration_and_braking_forces(
                 0.0,
                 0.0,
             ));
-        let mut multiplier = if keys.pressed(KeyCode::W) {
-            1.0
-        } else if keys.pressed(KeyCode::S) {
-            -1.0
+        let mut multiplier = 0.0;
+        if parent_id.0 == -1 {
+            multiplier = if keys.pressed(KeyCode::W) {
+                1.0
+            } else if keys.pressed(KeyCode::S) {
+                -1.0
+            } else {
+                0.0
+            };
         } else {
-            0.0
-        };
-        for ev in gamepad_evr.iter() {
-            match ev {
-                GamepadEvent::Button(button_ev) => match button_ev.button_type {
-                    GamepadButtonType::RightTrigger2 => {
-                        *right_trigger = button_ev.value;
-                    }
-                    GamepadButtonType::LeftTrigger2 => {
-                        *left_trigger = -button_ev.value;
-                    }
-                    _ => (),
-                },
-                _ => (),
+            if left_trigger.contains_key(&parent_id.0)
+                && *left_trigger.get(&parent_id.0).unwrap() != 0.0
+            {
+                multiplier = *left_trigger.get(&parent_id.0).unwrap();
+            } else {
+                if let Some(v) = right_trigger.get(&parent_id.0) {
+                    multiplier = *v;
+                }
             }
-        }
-        if *left_trigger != 0.0 {
-            multiplier = *left_trigger;
-        } else if *right_trigger != 0.0 {
-            multiplier = *right_trigger;
         }
         if tire.distance_to_ground.is_some() && tire.connected_to_engine {
             add_forces.send(AddForce {
@@ -571,30 +641,36 @@ fn calculate_tire_friction(
 }
 
 fn turn_tires(
-    drivables: Query<&VehicleConfig, With<Drivable>>,
+    drivables: Query<(&VehicleConfig, &ID), With<Drivable>>,
     keys: Res<Input<KeyCode>>,
     mut tires: Query<(&mut Transform, &Tire, &Parent)>,
     axes: Res<Axis<GamepadAxis>>,
     gamepads: Res<Gamepads>,
 ) {
     for (mut tire_transform, tire, parent) in &mut tires {
-        let parent_config = drivables.get(parent.get()).unwrap();
-        let mut multiplier = if keys.pressed(KeyCode::D) {
-            -1.0
-        } else if keys.pressed(KeyCode::A) {
-            1.0
-        } else {
-            0.0
-        };
-
-        for gamepad in gamepads.iter() {
-            let axis_lx = GamepadAxis {
-                gamepad,
-                axis_type: GamepadAxisType::LeftStickX,
+        let (parent_config, parent_id) = drivables.get(parent.get()).unwrap();
+        let mut multiplier = 0.0;
+        if parent_id.0 == -1 {
+            multiplier = if keys.pressed(KeyCode::D) {
+                -1.0
+            } else if keys.pressed(KeyCode::A) {
+                1.0
+            } else {
+                0.0
             };
-            if let Some(x) = axes.get(axis_lx) {
-                if x != 0.0 {
-                    multiplier = -x;
+        } else {
+            for gamepad in gamepads.iter() {
+                if gamepad.id as i32 != parent_id.0 {
+                    continue;
+                }
+                let axis_lx = GamepadAxis {
+                    gamepad,
+                    axis_type: GamepadAxisType::LeftStickX,
+                };
+                if let Some(x) = axes.get(axis_lx) {
+                    if x != 0.0 {
+                        multiplier = -x;
+                    }
                 }
             }
         }
