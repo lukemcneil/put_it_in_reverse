@@ -7,7 +7,7 @@
     {
       "name": "Scene",
       "nodes": [
-        61
+        62
       ]
     }
   ],
@@ -15,242 +15,422 @@
   "nodes": [
     {
       "name": "mesh0_mesh",
+      "extras": {
+        "name": "mesh0_mesh"
+      },
       "mesh": 0
     },
     {
       "name": "mesh0_mesh_1",
+      "extras": {
+        "name": "mesh0_mesh_1"
+      },
       "mesh": 1
     },
     {
       "name": "mesh0_mesh_2",
+      "extras": {
+        "name": "mesh0_mesh_2"
+      },
       "mesh": 2
     },
     {
       "name": "mesh0_mesh_3",
+      "extras": {
+        "name": "mesh0_mesh_3"
+      },
       "mesh": 3
     },
     {
       "name": "mesh0_mesh_4",
+      "extras": {
+        "name": "mesh0_mesh_4"
+      },
       "mesh": 4
     },
     {
       "name": "mesh0_mesh_5",
+      "extras": {
+        "name": "mesh0_mesh_5"
+      },
       "mesh": 5
     },
     {
       "name": "mesh0_mesh_6",
+      "extras": {
+        "name": "mesh0_mesh_6"
+      },
       "mesh": 6
     },
     {
       "name": "mesh0_mesh_7",
+      "extras": {
+        "name": "mesh0_mesh_7"
+      },
       "mesh": 7
     },
     {
       "name": "mesh0_mesh_8",
+      "extras": {
+        "name": "mesh0_mesh_8"
+      },
       "mesh": 8
     },
     {
       "name": "mesh0_mesh_9",
+      "extras": {
+        "name": "mesh0_mesh_9"
+      },
       "mesh": 9
     },
     {
       "name": "mesh0_mesh_10",
+      "extras": {
+        "name": "mesh0_mesh_10"
+      },
       "mesh": 10
     },
     {
       "name": "mesh0_mesh_11",
+      "extras": {
+        "name": "mesh0_mesh_11"
+      },
       "mesh": 11
     },
     {
       "name": "mesh0_mesh_12",
+      "extras": {
+        "name": "mesh0_mesh_12"
+      },
       "mesh": 12
     },
     {
       "name": "mesh0_mesh_13",
+      "extras": {
+        "name": "mesh0_mesh_13"
+      },
       "mesh": 13
     },
     {
       "name": "mesh0_mesh_14",
+      "extras": {
+        "name": "mesh0_mesh_14"
+      },
       "mesh": 14
     },
     {
       "name": "mesh0_mesh_15",
+      "extras": {
+        "name": "mesh0_mesh_15"
+      },
       "mesh": 15
     },
     {
       "name": "mesh0_mesh_16",
+      "extras": {
+        "name": "mesh0_mesh_16"
+      },
       "mesh": 16
     },
     {
       "name": "mesh0_mesh_17",
+      "extras": {
+        "name": "mesh0_mesh_17"
+      },
       "mesh": 17
     },
     {
       "name": "mesh0_mesh_18",
+      "extras": {
+        "name": "mesh0_mesh_18"
+      },
       "mesh": 18
     },
     {
       "name": "mesh0_mesh_19",
+      "extras": {
+        "name": "mesh0_mesh_19"
+      },
       "mesh": 19
     },
     {
       "name": "mesh0_mesh_20",
+      "extras": {
+        "name": "mesh0_mesh_20"
+      },
       "mesh": 20
     },
     {
       "name": "mesh0_mesh_21",
+      "extras": {
+        "name": "mesh0_mesh_21"
+      },
       "mesh": 21
     },
     {
       "name": "mesh0_mesh_22",
+      "extras": {
+        "name": "mesh0_mesh_22"
+      },
       "mesh": 22
     },
     {
       "name": "mesh0_mesh_23",
+      "extras": {
+        "name": "mesh0_mesh_23"
+      },
       "mesh": 23
     },
     {
       "name": "mesh0_mesh_24",
+      "extras": {
+        "name": "mesh0_mesh_24"
+      },
       "mesh": 24
     },
     {
       "name": "mesh0_mesh_25",
+      "extras": {
+        "name": "mesh0_mesh_25"
+      },
       "mesh": 25
     },
     {
       "name": "mesh0_mesh_26",
+      "extras": {
+        "name": "mesh0_mesh_26"
+      },
       "mesh": 26
     },
     {
       "name": "mesh0_mesh_27",
+      "extras": {
+        "name": "mesh0_mesh_27"
+      },
       "mesh": 27
     },
     {
       "name": "mesh0_mesh_28",
+      "extras": {
+        "name": "mesh0_mesh_28"
+      },
       "mesh": 28
     },
     {
       "name": "mesh0_mesh_29",
+      "extras": {
+        "name": "mesh0_mesh_29"
+      },
       "mesh": 29
     },
     {
       "name": "mesh0_mesh_30",
+      "extras": {
+        "name": "mesh0_mesh_30"
+      },
       "mesh": 30
     },
     {
       "name": "mesh0_mesh_31",
+      "extras": {
+        "name": "mesh0_mesh_31"
+      },
       "mesh": 31
     },
     {
       "name": "mesh0_mesh_32",
+      "extras": {
+        "name": "mesh0_mesh_32"
+      },
       "mesh": 32
     },
     {
       "name": "mesh0_mesh_33",
+      "extras": {
+        "name": "mesh0_mesh_33"
+      },
       "mesh": 33
     },
     {
       "name": "mesh0_mesh_34",
+      "extras": {
+        "name": "mesh0_mesh_34"
+      },
       "mesh": 34
     },
     {
       "name": "mesh0_mesh_35",
+      "extras": {
+        "name": "mesh0_mesh_35"
+      },
       "mesh": 35
     },
     {
       "name": "mesh0_mesh_36",
+      "extras": {
+        "name": "mesh0_mesh_36"
+      },
       "mesh": 36
     },
     {
       "name": "mesh0_mesh_37",
+      "extras": {
+        "name": "mesh0_mesh_37"
+      },
       "mesh": 37
     },
     {
       "name": "mesh0_mesh_38",
+      "extras": {
+        "name": "mesh0_mesh_38"
+      },
       "mesh": 38
     },
     {
       "name": "mesh0_mesh_39",
+      "extras": {
+        "name": "mesh0_mesh_39"
+      },
       "mesh": 39
     },
     {
       "name": "mesh0_mesh_40",
+      "extras": {
+        "name": "mesh0_mesh_40"
+      },
       "mesh": 40
     },
     {
       "name": "mesh0_mesh_41",
+      "extras": {
+        "name": "mesh0_mesh_41"
+      },
       "mesh": 41
     },
     {
       "name": "mesh0_mesh_42",
+      "extras": {
+        "name": "mesh0_mesh_42"
+      },
       "mesh": 42
     },
     {
       "name": "mesh0_mesh_43",
+      "extras": {
+        "name": "mesh0_mesh_43"
+      },
       "mesh": 43
     },
     {
       "name": "mesh0_mesh_44",
+      "extras": {
+        "name": "mesh0_mesh_44"
+      },
       "mesh": 44
     },
     {
       "name": "mesh0_mesh_45",
+      "extras": {
+        "name": "mesh0_mesh_45"
+      },
       "mesh": 45
     },
     {
       "name": "mesh0_mesh_46",
+      "extras": {
+        "name": "mesh0_mesh_46"
+      },
       "mesh": 46
     },
     {
       "name": "mesh0_mesh_47",
+      "extras": {
+        "name": "mesh0_mesh_47"
+      },
       "mesh": 47
     },
     {
       "name": "mesh0_mesh_48",
+      "extras": {
+        "name": "mesh0_mesh_48"
+      },
       "mesh": 48
     },
     {
       "name": "mesh0_mesh_49",
+      "extras": {
+        "name": "mesh0_mesh_49"
+      },
       "mesh": 49
     },
     {
       "name": "mesh0_mesh_50",
+      "extras": {
+        "name": "mesh0_mesh_50"
+      },
       "mesh": 50
     },
     {
       "name": "mesh0_mesh_51",
+      "extras": {
+        "name": "mesh0_mesh_51"
+      },
       "mesh": 51
     },
     {
       "name": "mesh0_mesh_52",
+      "extras": {
+        "name": "mesh0_mesh_52"
+      },
       "mesh": 52
     },
     {
       "name": "mesh0_mesh_53",
+      "extras": {
+        "name": "mesh0_mesh_53"
+      },
       "mesh": 53
     },
     {
       "name": "mesh0_mesh_54",
+      "extras": {
+        "name": "mesh0_mesh_54"
+      },
       "mesh": 54
     },
     {
       "name": "mesh0_mesh_55",
+      "extras": {
+        "name": "mesh0_mesh_55"
+      },
       "mesh": 55
     },
     {
       "name": "mesh0_mesh_56",
+      "extras": {
+        "name": "mesh0_mesh_56"
+      },
       "mesh": 56
     },
     {
       "name": "mesh0_mesh_57",
+      "extras": {
+        "name": "mesh0_mesh_57"
+      },
       "mesh": 57
     },
     {
       "name": "mesh0_mesh_58",
+      "extras": {
+        "name": "mesh0_mesh_58"
+      },
       "mesh": 58
     },
     {
       "name": "mesh0_mesh_59",
+      "extras": {
+        "name": "mesh0_mesh_59"
+      },
       "mesh": 59
     },
     {
@@ -348,9 +528,36 @@
         0,
         1
       ],
-      "name": "model.gltf",
+      "name": "modelgltf",
+      "extras": {
+        "name": "model.gltf"
+      },
       "children": [
         60
+      ]
+    },
+    {
+      "matrix": [
+        70,
+        0,
+        0,
+        0,
+        0,
+        70,
+        0,
+        0,
+        0,
+        0,
+        70,
+        0,
+        0,
+        0,
+        0,
+        1
+      ],
+      "name": "scene.gltf",
+      "children": [
+        61
       ]
     }
   ],
@@ -5468,9 +5675,9 @@
     {
       "pbrMetallicRoughness": {
         "baseColorFactor": [
-          0.615686297416687,
-          0.8117647171020508,
-          0.929411768913269,
+          0.6172065624120635,
+          0.8148465722120952,
+          0.9301108583738498,
           1
         ],
         "metallicFactor": 0,

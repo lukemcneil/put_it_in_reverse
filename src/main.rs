@@ -21,7 +21,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             RapierPhysicsPlugin::<NoUserData>::default(),
-            RapierDebugRenderPlugin::default(),
+            // RapierDebugRenderPlugin::default(),
         ))
         .add_plugins((
             LogDiagnosticsPlugin::default(),
@@ -81,45 +81,16 @@ pub fn setup_physics(
         Name::from("Sun"),
     ));
 
-    // ground
-    let ground_size = 100.0;
-    let ground_height = 0.1;
-
     let floor_texture_handle = asset_server.load("floor.png");
     commands.spawn((
-        Collider::cuboid(ground_size, ground_height, ground_size),
-        Name::from("Floor"),
-        MaterialMeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Plane {
-                size: ground_size * 2.0,
-                subdivisions: 0,
-            })),
-            material: materials.add(StandardMaterial {
-                base_color_texture: Some(floor_texture_handle.clone()),
-                unlit: false,
-                ..default()
-            }),
-            transform: Transform::from_xyz(0.0, -ground_height, 0.0),
-            global_transform: default(),
+        SceneBundle {
+            scene: asset_server.load("Map1-Test.gltf#Scene0"),
+            transform: Transform::from_rotation(Quat::from_rotation_x(-PI / 2.0))
+                .with_scale(Vec3::splat(10.0))
+                .with_translation(Vec3::new(-42.0, 0.0, 0.0)),
             ..default()
         },
-    ));
-    let mut ramp_tranform = Transform::from_xyz(50.0, -15.0, 0.0);
-    ramp_tranform.rotate_z(PI / 8.0);
-    commands.spawn((
-        Collider::cuboid(20.0, 20.0, 20.0),
-        Name::from("Ramp"),
-        MaterialMeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 20.0 * 2.0 })),
-            material: materials.add(StandardMaterial {
-                base_color_texture: Some(floor_texture_handle.clone()),
-                unlit: false,
-                ..default()
-            }),
-            transform: ramp_tranform,
-            global_transform: default(),
-            ..default()
-        },
+        AsyncSceneCollider::default(),
     ));
 
     let car_texture_handle = asset_server.load("car.png");
@@ -143,7 +114,7 @@ pub fn setup_physics(
     commands.entity(car_entity).insert(Car);
 
     let trailer_config = car_configs::TRAILER_CONFIG;
-    let trailer_entity = car::spawn_vehicle(
+    let _trailer_entity = car::spawn_vehicle(
         &mut commands,
         trailer_config.clone(),
         &mut materials,
@@ -202,7 +173,7 @@ fn camera_follow_car(
     let lerped_position = car_camera
         .translation
         .lerp(new_cam_location.translation(), time.delta_seconds());
-    car_camera.translation = Vec3::new(lerped_position.x, 30.0, lerped_position.z);
+    car_camera.translation = Vec3::new(lerped_position.x, lerped_position.y, lerped_position.z);
     car_camera.rotation = car_camera
         .looking_at(car.single().translation(), Vec3::Y)
         .rotation;

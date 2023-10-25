@@ -97,7 +97,7 @@ pub struct VehicleConfig {
 struct DrivableBundle {
     rigidbody: RigidBody,
     drivable: Drivable,
-    read_mass_properties: ReadMassProperties,
+    collider_mass_properties: ColliderMassProperties,
     velocity: Velocity,
     external_force: ExternalForce,
     name: Name,
@@ -126,10 +126,20 @@ pub fn spawn_vehicle(
 ) -> Entity {
     commands
         .spawn((
+            if is_car {
+                asset_server.load::<Scene, &str>("scene.gltf#Scene0")
+            } else {
+                asset_server.load::<Scene, &str>("scene.gltf#Scene0")
+            },
+            AsyncSceneCollider {
+                shape: Some(ComputedColliderShape::ConvexHull),
+                named_shapes: Default::default(),
+            },
             DrivableBundle {
                 name: Name::from(name),
                 friction: Friction::coefficient(0.5),
                 vehicle_config,
+                collider_mass_properties: ColliderMassProperties::Mass(20.0),
                 ..default()
             },
             MaterialMeshBundle {
@@ -334,22 +344,6 @@ pub fn spawn_vehicle(
                 .with_rotation(Quat::from_axis_angle(Vec3::Y, PI / 2.0)),
                 ..default()
             });
-            child_builder.spawn((
-                SceneBundle {
-                    scene: if is_car {
-                        asset_server.load("scene.gltf#Scene0")
-                    } else {
-                        asset_server.load("trailer_model.gltf#Scene0")
-                    },
-                    transform: Transform::from_xyz(0.0, 0.0, 0.0)
-                        .with_scale(Vec3::new(70.0, 70.0, 70.0)),
-                    ..default()
-                },
-                AsyncSceneCollider {
-                    shape: Some(ComputedColliderShape::ConvexHull),
-                    named_shapes: Default::default(),
-                },
-            ));
         })
         .id()
 }
@@ -546,12 +540,12 @@ fn calculate_tire_acceleration_and_braking_forces(
 
 fn calculate_tire_friction(
     tires: Query<(&GlobalTransform, &Parent, &Tire)>,
-    drivables: Query<(Entity, &Velocity, &Transform, &ReadMassProperties), With<Drivable>>,
+    drivables: Query<(Entity, &Velocity, &Transform, &ColliderMassProperties), With<Drivable>>,
     mut add_forces: EventWriter<AddForce>,
 ) {
     let coefficient_of_friction = 0.5;
     for (tire_transform, parent, tire) in &tires {
-        let (parent_entity, parent_velocity, parent_transform, ReadMassProperties(mass_properties)) =
+        let (parent_entity, parent_velocity, parent_transform, collider_mass_properties) =
             drivables.get(parent.get()).unwrap();
         if tire.distance_to_ground.is_some() && tire.connected_to_engine {
             if parent_velocity.linvel.length() > 0.0 {
@@ -570,7 +564,12 @@ fn calculate_tire_friction(
                             .compute_transform()
                             .rotation
                             .mul_vec3(Vec3::new(
-                                (mass_properties.mass / 4.0) * coefficient_of_friction * 9.81,
+                                (match collider_mass_properties {
+                                    ColliderMassProperties::Mass(mass) => mass,
+                                    _ => &0.0,
+                                } / 4.0)
+                                    * coefficient_of_friction
+                                    * 9.81,
                                 0.0,
                                 0.0,
                             )),
@@ -619,12 +618,12 @@ fn turn_tires(
 }
 
 fn calculate_tire_turning_forces(
-    drivables: Query<(Entity, &Transform, &Velocity, &ReadMassProperties), With<Drivable>>,
+    drivables: Query<(Entity, &Transform, &Velocity, &ColliderMassProperties), With<Drivable>>,
     tires: Query<(&Tire, &GlobalTransform, &Parent)>,
     mut add_forces: EventWriter<AddForce>,
 ) {
     for (tire, tire_transform, parent) in &tires {
-        let (parent_entity, parent_transform, parent_velocity, ReadMassProperties(car_mass)) =
+        let (parent_entity, parent_transform, parent_velocity, collider_mass_properties) =
             drivables.get(parent.get()).unwrap();
         if tire.distance_to_ground.is_some() {
             let steering_direction = tire_transform.compute_transform().forward();
@@ -636,7 +635,12 @@ fn calculate_tire_turning_forces(
             let desired_velocity_change = -steering_velocity * tire.grip;
             let desired_acceleration = desired_velocity_change * 60.0;
             add_forces.send(AddForce {
-                force: steering_direction * desired_acceleration * (car_mass.mass / 4.0),
+                force: steering_direction
+                    * desired_acceleration
+                    * (match collider_mass_properties {
+                        ColliderMassProperties::Mass(mass) => mass,
+                        _ => &0.0,
+                    } / 4.0),
                 point: tire_transform.translation(),
                 entity: parent_entity,
             });
