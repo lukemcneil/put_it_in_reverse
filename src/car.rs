@@ -96,7 +96,6 @@ pub struct VehicleConfig {
 #[derive(Bundle, Default)]
 struct DrivableBundle {
     rigidbody: RigidBody,
-    collider: Collider,
     drivable: Drivable,
     read_mass_properties: ReadMassProperties,
     velocity: Velocity,
@@ -128,11 +127,6 @@ pub fn spawn_vehicle(
     commands
         .spawn((
             DrivableBundle {
-                collider: Collider::cuboid(
-                    vehicle_config.length,
-                    vehicle_config.height,
-                    vehicle_config.width,
-                ),
                 name: Name::from(name),
                 friction: Friction::coefficient(0.5),
                 vehicle_config,
@@ -340,16 +334,22 @@ pub fn spawn_vehicle(
                 .with_rotation(Quat::from_axis_angle(Vec3::Y, PI / 2.0)),
                 ..default()
             });
-            child_builder.spawn(SceneBundle {
-                scene: if is_car {
-                    asset_server.load("scene.gltf#Scene0")
-                } else {
-                    asset_server.load("trailer_model.gltf#Scene0")
+            child_builder.spawn((
+                SceneBundle {
+                    scene: if is_car {
+                        asset_server.load("scene.gltf#Scene0")
+                    } else {
+                        asset_server.load("trailer_model.gltf#Scene0")
+                    },
+                    transform: Transform::from_xyz(0.0, 0.0, 0.0)
+                        .with_scale(Vec3::new(70.0, 70.0, 70.0)),
+                    ..default()
                 },
-                transform: Transform::from_xyz(0.0, 0.0, 0.0)
-                    .with_scale(Vec3::new(70.0, 70.0, 70.0)),
-                ..default()
-            });
+                AsyncSceneCollider {
+                    shape: Some(ComputedColliderShape::ConvexHull),
+                    named_shapes: Default::default(),
+                },
+            ));
         })
         .id()
 }

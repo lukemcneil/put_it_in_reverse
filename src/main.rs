@@ -21,7 +21,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             RapierPhysicsPlugin::<NoUserData>::default(),
-            // RapierDebugRenderPlugin::default(),
+            RapierDebugRenderPlugin::default(),
         ))
         .add_plugins((
             LogDiagnosticsPlugin::default(),
@@ -155,13 +155,13 @@ pub fn setup_physics(
         &asset_server,
     );
 
-    let joint = SphericalJointBuilder::new()
-        .local_anchor1(car_config.anchor_point)
-        .local_anchor2(trailer_config.anchor_point);
-    commands
-        .get_entity(trailer_entity)
-        .unwrap()
-        .insert(ImpulseJoint::new(car_entity, joint));
+    // let joint = SphericalJointBuilder::new()
+    //     .local_anchor1(car_config.anchor_point)
+    //     .local_anchor2(trailer_config.anchor_point);
+    // commands
+    //     .get_entity(trailer_entity)
+    //     .unwrap()
+    //     .insert(ImpulseJoint::new(car_entity, joint));
 
     // add boxes to run into
     let mut box_parent_entity = commands.spawn((SpatialBundle::default(), Name::from("Obstacles")));
