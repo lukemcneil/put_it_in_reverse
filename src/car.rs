@@ -142,6 +142,7 @@ pub fn spawn_vehicle(
                 ),
                 ..default()
             },
+            ColliderMassProperties::Density(1.0),
             DrivableBundle {
                 name: Name::from(name),
                 friction: Friction::coefficient(0.5),
