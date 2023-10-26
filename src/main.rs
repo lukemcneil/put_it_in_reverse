@@ -84,10 +84,8 @@ pub fn setup_physics(
     let floor_texture_handle = asset_server.load("floor.png");
     commands.spawn((
         SceneBundle {
-            scene: asset_server.load("Map1-Test.gltf#Scene0"),
-            transform: Transform::from_rotation(Quat::from_rotation_x(-PI / 2.0))
-                .with_scale(Vec3::splat(10.0))
-                .with_translation(Vec3::new(-42.0, 0.0, 0.0)),
+            scene: asset_server.load("newmap.glb#Scene0"),
+            transform: Transform::from_xyz(0.0, -40.2, 0.0).with_scale(Vec3::splat(10.0)),
             ..default()
         },
         AsyncSceneCollider::default(),
