@@ -2,8 +2,6 @@ mod car;
 mod car_configs;
 mod ui;
 
-use std::f32::consts::PI;
-
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
@@ -21,7 +19,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             RapierPhysicsPlugin::<NoUserData>::default(),
-            // RapierDebugRenderPlugin::default(),
+            RapierDebugRenderPlugin::default(),
         ))
         .add_plugins((
             LogDiagnosticsPlugin::default(),
@@ -91,7 +89,6 @@ pub fn setup_physics(
         AsyncSceneCollider::default(),
     ));
 
-    let car_texture_handle = asset_server.load("car.png");
     let tire_material = materials.add(StandardMaterial {
         base_color: Color::BLACK,
         ..default()
@@ -101,9 +98,7 @@ pub fn setup_physics(
     let car_entity = car::spawn_vehicle(
         &mut commands,
         car_config.clone(),
-        &mut materials,
         &mut meshes,
-        car_texture_handle.clone(),
         tire_material.clone(),
         "Car",
         true,
@@ -115,9 +110,7 @@ pub fn setup_physics(
     let _trailer_entity = car::spawn_vehicle(
         &mut commands,
         trailer_config.clone(),
-        &mut materials,
         &mut meshes,
-        car_texture_handle.clone(),
         tire_material.clone(),
         "Trailer",
         false,
