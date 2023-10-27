@@ -95,8 +95,11 @@ pub struct VehicleConfig {
 
 #[derive(Bundle, Default)]
 struct DrivableBundle {
+    transform: TransformBundle,
+    visibility: VisibilityBundle,
     rigidbody: RigidBody,
     collider: Collider,
+    collider_mass_properties: ColliderMassProperties,
     drivable: Drivable,
     read_mass_properties: ReadMassProperties,
     velocity: Velocity,
@@ -124,38 +127,42 @@ pub fn spawn_vehicle(
     asset_server: &Res<AssetServer>,
 ) -> Entity {
     commands
-        .spawn((
-            SceneBundle {
-                scene: if is_car {
-                    asset_server.load::<Scene, &str>("scene.gltf#Scene0")
+        .spawn((DrivableBundle {
+            transform: TransformBundle::from_transform(Transform::from_xyz(
+                if is_car {
+                    vehicle_config.length + vehicle_config.anchor_point.x
                 } else {
-                    asset_server.load::<Scene, &str>("scene.gltf#Scene0")
+                    -(vehicle_config.length + vehicle_config.anchor_point.x)
                 },
-                transform: Transform::from_xyz(
-                    if is_car {
-                        vehicle_config.length + vehicle_config.anchor_point.x
-                    } else {
-                        -(vehicle_config.length + vehicle_config.anchor_point.x)
-                    },
-                    vehicle_config.height,
-                    0.,
-                ),
-                ..default()
-            },
-            ColliderMassProperties::Density(1.0),
-            DrivableBundle {
-                name: Name::from(name),
-                friction: Friction::coefficient(0.5),
-                vehicle_config,
-                collider: Collider::cuboid(
-                    vehicle_config.length,
-                    vehicle_config.height,
-                    vehicle_config.width,
-                ),
-                ..default()
-            },
-        ))
+                vehicle_config.height,
+                0.,
+            )),
+            name: Name::from(name),
+            friction: Friction::coefficient(0.5),
+            vehicle_config,
+            collider: Collider::cuboid(
+                vehicle_config.length,
+                vehicle_config.height,
+                vehicle_config.width,
+            ),
+            collider_mass_properties: ColliderMassProperties::Density(1.0),
+            ..default()
+        },))
         .with_children(|child_builder| {
+            // vehicle model
+            child_builder.spawn((
+                SceneBundle {
+                    scene: if is_car {
+                        asset_server.load::<Scene, &str>("scene.gltf#Scene0")
+                    } else {
+                        asset_server.load::<Scene, &str>("scene.gltf#Scene0")
+                    },
+                    transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                    ..default()
+                },
+                Name::from("Vehicle Model"),
+            ));
+
             let tire_mesh = meshes.add(Mesh::from(shape::Cylinder {
                 radius: 0.5,
                 height: 0.5,
