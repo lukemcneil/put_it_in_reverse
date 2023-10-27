@@ -179,7 +179,7 @@ fn set_transform_on_level(
     mut level_transform: Query<&mut Transform, With<Level>>,
     time: Res<Time>,
 ) {
-    if time.elapsed_seconds() < 1.0 {
+    if time.elapsed_seconds() < 10.0 {
         let mut level_transform = level_transform.single_mut();
         level_transform.translation = level_transform.translation;
     }
