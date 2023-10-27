@@ -111,7 +111,7 @@ pub fn setup_physics(
     commands.entity(car_entity).insert(Car);
 
     let trailer_config = car_configs::TRAILER_CONFIG;
-    let _trailer_entity = car::spawn_vehicle(
+    let trailer_entity = car::spawn_vehicle(
         &mut commands,
         trailer_config.clone(),
         &mut meshes,
@@ -121,13 +121,13 @@ pub fn setup_physics(
         &asset_server,
     );
 
-    // let joint = SphericalJointBuilder::new()
-    //     .local_anchor1(car_config.anchor_point)
-    //     .local_anchor2(trailer_config.anchor_point);
-    // commands
-    //     .get_entity(trailer_entity)
-    //     .unwrap()
-    //     .insert(ImpulseJoint::new(car_entity, joint));
+    let joint = SphericalJointBuilder::new()
+        .local_anchor1(car_config.anchor_point)
+        .local_anchor2(trailer_config.anchor_point);
+    commands
+        .get_entity(trailer_entity)
+        .unwrap()
+        .insert(ImpulseJoint::new(car_entity, joint));
 
     // add boxes to run into
     let floor_texture_handle = asset_server.load("floor.png");
