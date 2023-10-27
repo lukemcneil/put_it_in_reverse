@@ -28,13 +28,17 @@ fn main() {
         ))
         .add_plugins((car::CarPlugin, ui::UIPlugin))
         .add_systems(Startup, setup_physics)
-        .add_systems(Update, camera_follow_car)
+        .add_systems(Update, (camera_follow_car, set_transform_on_level))
         .run();
 }
 
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]
 struct CarCamera;
+
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
+struct Level;
 
 pub fn setup_physics(
     mut commands: Commands,
@@ -79,7 +83,6 @@ pub fn setup_physics(
         Name::from("Sun"),
     ));
 
-    let floor_texture_handle = asset_server.load("floor.png");
     commands.spawn((
         SceneBundle {
             scene: asset_server.load("newmap.glb#Scene0"),
@@ -87,6 +90,7 @@ pub fn setup_physics(
             ..default()
         },
         AsyncSceneCollider::default(),
+        Level,
     ));
 
     let tire_material = materials.add(StandardMaterial {
@@ -126,6 +130,7 @@ pub fn setup_physics(
     //     .insert(ImpulseJoint::new(car_entity, joint));
 
     // add boxes to run into
+    let floor_texture_handle = asset_server.load("floor.png");
     let mut box_parent_entity = commands.spawn((SpatialBundle::default(), Name::from("Obstacles")));
     let w = 10;
     let h = 5;
@@ -168,4 +173,14 @@ fn camera_follow_car(
     car_camera.rotation = car_camera
         .looking_at(car.single().translation(), Vec3::Y)
         .rotation;
+}
+
+fn set_transform_on_level(
+    mut level_transform: Query<&mut Transform, With<Level>>,
+    time: Res<Time>,
+) {
+    if time.elapsed_seconds() < 1.0 {
+        let mut level_transform = level_transform.single_mut();
+        level_transform.translation = level_transform.translation;
+    }
 }
