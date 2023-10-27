@@ -95,8 +95,11 @@ pub struct VehicleConfig {
 
 #[derive(Bundle, Default)]
 struct DrivableBundle {
+    transform: TransformBundle,
+    visibility: VisibilityBundle,
     rigidbody: RigidBody,
     collider: Collider,
+    collider_mass_properties: ColliderMassProperties,
     drivable: Drivable,
     read_mass_properties: ReadMassProperties,
     velocity: Velocity,
@@ -117,54 +120,49 @@ struct TireBundle {
 pub fn spawn_vehicle(
     commands: &mut Commands,
     vehicle_config: VehicleConfig,
-    materials: &mut ResMut<Assets<StandardMaterial>>,
     meshes: &mut ResMut<Assets<Mesh>>,
-    texture_handle: Handle<Image>,
     tire_material: Handle<StandardMaterial>,
     name: &str,
     is_car: bool,
+    asset_server: &Res<AssetServer>,
 ) -> Entity {
     commands
-        .spawn((
-            DrivableBundle {
-                collider: Collider::cuboid(
-                    vehicle_config.length,
-                    vehicle_config.height,
-                    vehicle_config.width,
-                ),
-                name: Name::from(name),
-                friction: Friction::coefficient(0.5),
-                vehicle_config,
-                ..default()
-            },
-            MaterialMeshBundle {
-                mesh: meshes.add(Mesh::from(shape::Box {
-                    min_x: -vehicle_config.length,
-                    max_x: vehicle_config.length,
-                    min_y: -vehicle_config.height,
-                    max_y: vehicle_config.height,
-                    min_z: -vehicle_config.width,
-                    max_z: vehicle_config.width,
-                })),
-                material: materials.add(StandardMaterial {
-                    base_color_texture: Some(texture_handle.clone()),
-                    unlit: false,
-                    ..default()
-                }),
-                transform: Transform::from_xyz(
-                    if is_car {
-                        vehicle_config.length + vehicle_config.anchor_point.x
-                    } else {
-                        -(vehicle_config.length + vehicle_config.anchor_point.x)
-                    },
-                    vehicle_config.height,
-                    0.,
-                ),
-                global_transform: default(),
-                ..default()
-            },
-        ))
+        .spawn((DrivableBundle {
+            transform: TransformBundle::from_transform(Transform::from_xyz(
+                if is_car {
+                    vehicle_config.length + vehicle_config.anchor_point.x
+                } else {
+                    -(vehicle_config.length + vehicle_config.anchor_point.x)
+                },
+                vehicle_config.height,
+                0.,
+            )),
+            name: Name::from(name),
+            friction: Friction::coefficient(0.5),
+            vehicle_config,
+            collider: Collider::cuboid(
+                vehicle_config.length,
+                vehicle_config.height,
+                vehicle_config.width,
+            ),
+            collider_mass_properties: ColliderMassProperties::Density(1.0),
+            ..default()
+        },))
         .with_children(|child_builder| {
+            // vehicle model
+            child_builder.spawn((
+                SceneBundle {
+                    scene: if is_car {
+                        asset_server.load::<Scene, &str>("scene.gltf#Scene0")
+                    } else {
+                        asset_server.load::<Scene, &str>("scene.gltf#Scene0")
+                    },
+                    transform: Transform::from_xyz(0.0, 0.0, 0.0),
+                    ..default()
+                },
+                Name::from("Vehicle Model"),
+            ));
+
             let tire_mesh = meshes.add(Mesh::from(shape::Cylinder {
                 radius: 0.5,
                 height: 0.5,
@@ -274,70 +272,47 @@ pub fn spawn_vehicle(
                     Name::from("Camera Desired Position"),
                 ));
 
-                child_builder.spawn(SpotLightBundle {
-                    spot_light: SpotLight {
-                        color: Color::rgb(225.0 / 255.0, 208.0 / 255.0, 182.0 / 255.0),
-                        intensity: 10000.0,
-                        range: 200.0,
-                        shadows_enabled: true,
-                        outer_angle: 0.5,
+                child_builder.spawn((
+                    SpotLightBundle {
+                        spot_light: SpotLight {
+                            color: Color::rgb(225.0 / 255.0, 208.0 / 255.0, 182.0 / 255.0),
+                            intensity: 10000.0,
+                            range: 200.0,
+                            shadows_enabled: true,
+                            outer_angle: 0.5,
+                            ..default()
+                        },
+                        transform: Transform::from_xyz(
+                            vehicle_config.length,
+                            0.0,
+                            -vehicle_config.width,
+                        )
+                        .with_rotation(Quat::from_axis_angle(Vec3::Y, -PI / 2.0)),
                         ..default()
                     },
-                    transform: Transform::from_xyz(
-                        vehicle_config.length,
-                        0.0,
-                        -vehicle_config.width,
-                    )
-                    .with_rotation(Quat::from_axis_angle(Vec3::Y, -PI / 2.0)),
-                    ..default()
-                });
-                child_builder.spawn(SpotLightBundle {
-                    spot_light: SpotLight {
-                        color: Color::rgb(225.0 / 255.0, 208.0 / 255.0, 182.0 / 255.0),
-                        intensity: 10000.0,
-                        range: 200.0,
-                        shadows_enabled: true,
-                        outer_angle: 0.5,
+                    Name::from("Head Light Left"),
+                ));
+                child_builder.spawn((
+                    SpotLightBundle {
+                        spot_light: SpotLight {
+                            color: Color::rgb(225.0 / 255.0, 208.0 / 255.0, 182.0 / 255.0),
+                            intensity: 10000.0,
+                            range: 200.0,
+                            shadows_enabled: true,
+                            outer_angle: 0.5,
+                            ..default()
+                        },
+                        transform: Transform::from_xyz(
+                            vehicle_config.length,
+                            0.0,
+                            vehicle_config.width,
+                        )
+                        .with_rotation(Quat::from_axis_angle(Vec3::Y, -PI / 2.0)),
                         ..default()
                     },
-                    transform: Transform::from_xyz(
-                        vehicle_config.length,
-                        0.0,
-                        vehicle_config.width,
-                    )
-                    .with_rotation(Quat::from_axis_angle(Vec3::Y, -PI / 2.0)),
-                    ..default()
-                });
+                    Name::from("Head Light Right"),
+                ));
             }
-
-            child_builder.spawn(PbrBundle {
-                mesh: meshes.add(shape::Cube { size: 0.25 }.try_into().unwrap()),
-                material: materials.add(StandardMaterial {
-                    emissive: Color::RED,
-                    ..default()
-                }),
-                transform: Transform::from_xyz(
-                    -vehicle_config.length,
-                    vehicle_config.height / 3.0,
-                    vehicle_config.width - 0.125,
-                )
-                .with_rotation(Quat::from_axis_angle(Vec3::Y, PI / 2.0)),
-                ..default()
-            });
-            child_builder.spawn(PbrBundle {
-                mesh: meshes.add(shape::Cube { size: 0.25 }.try_into().unwrap()),
-                material: materials.add(StandardMaterial {
-                    emissive: Color::RED,
-                    ..default()
-                }),
-                transform: Transform::from_xyz(
-                    -vehicle_config.length,
-                    vehicle_config.height / 3.0,
-                    -vehicle_config.width + 0.125,
-                )
-                .with_rotation(Quat::from_axis_angle(Vec3::Y, PI / 2.0)),
-                ..default()
-            });
         })
         .id()
 }
@@ -612,7 +587,7 @@ fn calculate_tire_turning_forces(
     mut add_forces: EventWriter<AddForce>,
 ) {
     for (tire, tire_transform, parent) in &tires {
-        let (parent_entity, parent_transform, parent_velocity, ReadMassProperties(car_mass)) =
+        let (parent_entity, parent_transform, parent_velocity, ReadMassProperties(mass_properties)) =
             drivables.get(parent.get()).unwrap();
         if tire.distance_to_ground.is_some() {
             let steering_direction = tire_transform.compute_transform().forward();
@@ -624,7 +599,7 @@ fn calculate_tire_turning_forces(
             let desired_velocity_change = -steering_velocity * tire.grip;
             let desired_acceleration = desired_velocity_change * 60.0;
             add_forces.send(AddForce {
-                force: steering_direction * desired_acceleration * (car_mass.mass / 4.0),
+                force: steering_direction * desired_acceleration * (mass_properties.mass / 4.0),
                 point: tire_transform.translation(),
                 entity: parent_entity,
             });

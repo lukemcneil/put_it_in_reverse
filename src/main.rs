@@ -2,8 +2,6 @@ mod car;
 mod car_configs;
 mod ui;
 
-use std::f32::consts::PI;
-
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
 use bevy::input::common_conditions::input_toggle_active;
 use bevy::prelude::*;
@@ -21,7 +19,7 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             RapierPhysicsPlugin::<NoUserData>::default(),
-            // RapierDebugRenderPlugin::default(),
+            RapierDebugRenderPlugin::default(),
         ))
         .add_plugins((
             LogDiagnosticsPlugin::default(),
@@ -30,13 +28,17 @@ fn main() {
         ))
         .add_plugins((car::CarPlugin, ui::UIPlugin))
         .add_systems(Startup, setup_physics)
-        .add_systems(Update, camera_follow_car)
+        .add_systems(Update, (camera_follow_car, set_transform_on_level))
         .run();
 }
 
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]
 struct CarCamera;
+
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
+struct Level;
 
 pub fn setup_physics(
     mut commands: Commands,
@@ -81,76 +83,42 @@ pub fn setup_physics(
         Name::from("Sun"),
     ));
 
-    // ground
-    let ground_size = 100.0;
-    let ground_height = 0.1;
-
-    let floor_texture_handle = asset_server.load("floor.png");
     commands.spawn((
-        Collider::cuboid(ground_size, ground_height, ground_size),
-        Name::from("Floor"),
-        MaterialMeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Plane {
-                size: ground_size * 2.0,
-                subdivisions: 0,
-            })),
-            material: materials.add(StandardMaterial {
-                base_color_texture: Some(floor_texture_handle.clone()),
-                unlit: false,
-                ..default()
-            }),
-            transform: Transform::from_xyz(0.0, -ground_height, 0.0),
-            global_transform: default(),
+        SceneBundle {
+            scene: asset_server.load("newmap.glb#Scene0"),
+            transform: Transform::from_xyz(0.0, -40.2, 0.0).with_scale(Vec3::splat(10.0)),
             ..default()
         },
-    ));
-    let mut ramp_tranform = Transform::from_xyz(50.0, -15.0, 0.0);
-    ramp_tranform.rotate_z(PI / 8.0);
-    commands.spawn((
-        Collider::cuboid(20.0, 20.0, 20.0),
-        Name::from("Ramp"),
-        MaterialMeshBundle {
-            mesh: meshes.add(Mesh::from(shape::Cube { size: 20.0 * 2.0 })),
-            material: materials.add(StandardMaterial {
-                base_color_texture: Some(floor_texture_handle.clone()),
-                unlit: false,
-                ..default()
-            }),
-            transform: ramp_tranform,
-            global_transform: default(),
-            ..default()
-        },
+        AsyncSceneCollider::default(),
+        Level,
     ));
 
-    let car_texture_handle = asset_server.load("car.png");
     let tire_material = materials.add(StandardMaterial {
         base_color: Color::BLACK,
         ..default()
     });
     // car and trailer
-    let car_config = car_configs::DRIFTER_CONFIG;
+    let car_config = car_configs::CAR_CONFIG;
     let car_entity = car::spawn_vehicle(
         &mut commands,
         car_config.clone(),
-        &mut materials,
         &mut meshes,
-        car_texture_handle.clone(),
         tire_material.clone(),
         "Car",
         true,
+        &asset_server,
     );
     commands.entity(car_entity).insert(Car);
 
-    let trailer_config = car_configs::DRIFTER_TRAILER_CONFIG;
+    let trailer_config = car_configs::TRAILER_CONFIG;
     let trailer_entity = car::spawn_vehicle(
         &mut commands,
         trailer_config.clone(),
-        &mut materials,
         &mut meshes,
-        car_texture_handle.clone(),
         tire_material.clone(),
         "Trailer",
         false,
+        &asset_server,
     );
 
     let joint = SphericalJointBuilder::new()
@@ -162,6 +130,7 @@ pub fn setup_physics(
         .insert(ImpulseJoint::new(car_entity, joint));
 
     // add boxes to run into
+    let floor_texture_handle = asset_server.load("floor.png");
     let mut box_parent_entity = commands.spawn((SpatialBundle::default(), Name::from("Obstacles")));
     let w = 10;
     let h = 5;
@@ -200,8 +169,18 @@ fn camera_follow_car(
     let lerped_position = car_camera
         .translation
         .lerp(new_cam_location.translation(), time.delta_seconds());
-    car_camera.translation = Vec3::new(lerped_position.x, 30.0, lerped_position.z);
+    car_camera.translation = Vec3::new(lerped_position.x, lerped_position.y, lerped_position.z);
     car_camera.rotation = car_camera
         .looking_at(car.single().translation(), Vec3::Y)
         .rotation;
+}
+
+fn set_transform_on_level(
+    mut level_transform: Query<&mut Transform, With<Level>>,
+    time: Res<Time>,
+) {
+    if time.elapsed_seconds() < 1.0 {
+        let mut level_transform = level_transform.single_mut();
+        level_transform.translation = level_transform.translation;
+    }
 }
