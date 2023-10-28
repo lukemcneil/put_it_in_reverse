@@ -155,7 +155,7 @@ pub fn spawn_vehicle(
                     scene: if is_car {
                         asset_server.load::<Scene, &str>("scene.gltf#Scene0")
                     } else {
-                        asset_server.load::<Scene, &str>("scene.gltf#Scene0")
+                        asset_server.load::<Scene, &str>("trailer.glb#Scene0")
                     },
                     transform: Transform::from_xyz(0.0, 0.0, 0.0),
                     ..default()
