@@ -64,6 +64,12 @@ pub struct Tire {
     pub distance_to_ground: Option<f32>,
 }
 
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+pub struct VehicleCornerCollider {
+    pub is_car: bool,
+}
+
 impl Default for Tire {
     fn default() -> Self {
         Self {
@@ -266,6 +272,22 @@ pub fn spawn_vehicle(
                 .with_children(|tire_child_builder| {
                     tire_child_builder.spawn(get_tire_material_mesh_bundle());
                 });
+
+            for i in [-1.0, 1.0] {
+                for j in [-1.0, 1.0] {
+                    child_builder.spawn((
+                        Transform::from_xyz(
+                            vehicle_config.length * i,
+                            0.0,
+                            vehicle_config.width * j,
+                        ),
+                        Collider::ball(0.1),
+                        Sensor,
+                        VehicleCornerCollider { is_car },
+                        Name::from(format!("Corner ({}, {})", i, j)),
+                    ));
+                }
+            }
 
             if is_car {
                 child_builder.spawn((
