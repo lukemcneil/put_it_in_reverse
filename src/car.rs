@@ -35,6 +35,7 @@ impl Plugin for CarPlugin {
                 ),
             )
             .register_type::<Car>()
+            .register_type::<Trailer>()
             .register_type::<Drivable>()
             .register_type::<Tire>()
             .register_type::<CameraPosition>()
@@ -45,6 +46,10 @@ impl Plugin for CarPlugin {
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]
 pub struct Car;
+
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
+pub struct Trailer;
 
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]
@@ -126,7 +131,7 @@ pub fn spawn_vehicle(
     is_car: bool,
     asset_server: &Res<AssetServer>,
 ) -> Entity {
-    commands
+    let id = commands
         .spawn((DrivableBundle {
             transform: TransformBundle::from_transform(Transform::from_xyz(
                 if is_car {
@@ -314,7 +319,13 @@ pub fn spawn_vehicle(
                 ));
             }
         })
-        .id()
+        .id();
+    if is_car {
+        commands.entity(id).insert(Car);
+    } else {
+        commands.entity(id).insert(Trailer);
+    }
+    id
 }
 
 #[derive(Event)]
@@ -396,7 +407,7 @@ fn calculate_tire_distances_to_ground(
             tire_transform.down(),
             parent_config.spring_offset,
             false,
-            QueryFilter::only_fixed(),
+            QueryFilter::default().exclude_sensors(),
         );
         if let Some((_, hit_distance)) = hit {
             tire.distance_to_ground = Some(hit_distance);

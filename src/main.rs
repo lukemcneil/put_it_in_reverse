@@ -1,5 +1,6 @@
 mod car;
 mod car_configs;
+mod parking_spot;
 mod ui;
 
 use bevy::diagnostic::{FrameTimeDiagnosticsPlugin, LogDiagnosticsPlugin};
@@ -19,14 +20,18 @@ fn main() {
         .add_plugins((
             DefaultPlugins,
             RapierPhysicsPlugin::<NoUserData>::default(),
-            RapierDebugRenderPlugin::default(),
+            // RapierDebugRenderPlugin::default(),
         ))
         .add_plugins((
             LogDiagnosticsPlugin::default(),
             FrameTimeDiagnosticsPlugin::default(),
             WorldInspectorPlugin::default().run_if(input_toggle_active(false, KeyCode::Escape)),
         ))
-        .add_plugins((car::CarPlugin, ui::UIPlugin))
+        .add_plugins((
+            car::CarPlugin,
+            ui::UIPlugin,
+            parking_spot::ParkingSpotPlugin,
+        ))
         .add_systems(Startup, setup_physics)
         .add_systems(Update, (camera_follow_car, set_transform_on_level))
         .run();
@@ -108,7 +113,6 @@ pub fn setup_physics(
         true,
         &asset_server,
     );
-    commands.entity(car_entity).insert(Car);
 
     let trailer_config = car_configs::TRAILER_CONFIG;
     let trailer_entity = car::spawn_vehicle(
