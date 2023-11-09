@@ -90,12 +90,13 @@ pub fn setup_physics(
 
     commands.spawn((
         SceneBundle {
-            scene: asset_server.load("newmap.glb#Scene0"),
-            transform: Transform::from_xyz(0.0, -40.2, 0.0).with_scale(Vec3::splat(10.0)),
+            scene: asset_server.load("low_poly_race_track.glb#Scene0"),
+            transform: Transform::from_xyz(0.0, -10.0, 30.0),
             ..default()
         },
         AsyncSceneCollider::default(),
         Level,
+        Name::from("Level"),
     ));
 
     let tire_material = materials.add(StandardMaterial {
@@ -133,8 +134,35 @@ pub fn setup_physics(
         .unwrap()
         .insert(ImpulseJoint::new(car_entity, joint));
 
-    // add boxes to run into
     let floor_texture_handle = asset_server.load("floor.png");
+    let wx = 0.5;
+    let wy = 4.0;
+    let wz = 15.0;
+    commands.spawn((
+        MaterialMeshBundle {
+            mesh: meshes.add(Mesh::from(shape::Box {
+                min_x: -wx,
+                max_x: wx,
+                min_y: -wy,
+                max_y: wy,
+                min_z: -wz,
+                max_z: wz,
+            })),
+            material: materials.add(StandardMaterial {
+                base_color_texture: Some(floor_texture_handle.clone()),
+                unlit: false,
+                ..default()
+            }),
+            transform: Transform::from_xyz(-15.0, -5.0, -5.0),
+            ..default()
+        },
+        RigidBody::Fixed,
+        Collider::cuboid(wx, wy, wz),
+        Friction::coefficient(1.0),
+        Name::from("Wall"),
+    ));
+
+    // add boxes to run into
     let mut box_parent_entity = commands.spawn((SpatialBundle::default(), Name::from("Obstacles")));
     let w = 10;
     let h = 5;

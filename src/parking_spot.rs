@@ -8,6 +8,7 @@ pub struct ParkingSpotPlugin;
 impl Plugin for ParkingSpotPlugin {
     fn build(&self, app: &mut App) {
         app.register_type::<ParkingSpot>()
+            .register_type::<ParkingSpotInfo>()
             .insert_resource(ParkingSpotInfo {
                 transform: Transform::from_scale(Vec3 {
                     x: 10.0,
@@ -15,9 +16,9 @@ impl Plugin for ParkingSpotPlugin {
                     z: 4.0,
                 })
                 .with_translation(Vec3 {
-                    x: 0.0,
-                    y: -8.0,
-                    z: -0.0,
+                    x: -22.0,
+                    y: -7.0,
+                    z: 0.0,
                 }),
                 trailer_tires_in: 0,
             })
@@ -49,6 +50,7 @@ fn spawn_parking_spot(mut commands: Commands, parking_spot_info: Res<ParkingSpot
         Collider::cuboid(0.5, 0.5, 0.5),
         Sensor,
         ActiveEvents::COLLISION_EVENTS,
+        Name::from("Parking Spot"),
     ));
 }
 
