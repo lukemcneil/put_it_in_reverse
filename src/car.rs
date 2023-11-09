@@ -35,6 +35,7 @@ impl Plugin for CarPlugin {
                 ),
             )
             .register_type::<Car>()
+            .register_type::<Trailer>()
             .register_type::<Drivable>()
             .register_type::<Tire>()
             .register_type::<CameraPosition>()
@@ -48,6 +49,10 @@ pub struct Car;
 
 #[derive(Component, Default, Reflect)]
 #[reflect(Component)]
+pub struct Trailer;
+
+#[derive(Component, Default, Reflect)]
+#[reflect(Component)]
 struct Drivable;
 
 #[derive(Component, Reflect)]
@@ -57,6 +62,12 @@ pub struct Tire {
     pub turns: bool,
     pub grip: f32,
     pub distance_to_ground: Option<f32>,
+}
+
+#[derive(Component, Reflect, Default)]
+#[reflect(Component)]
+pub struct VehicleCornerCollider {
+    pub is_car: bool,
 }
 
 impl Default for Tire {
@@ -126,7 +137,7 @@ pub fn spawn_vehicle(
     is_car: bool,
     asset_server: &Res<AssetServer>,
 ) -> Entity {
-    commands
+    let id = commands
         .spawn((DrivableBundle {
             transform: TransformBundle::from_transform(Transform::from_xyz(
                 if is_car {
@@ -262,6 +273,22 @@ pub fn spawn_vehicle(
                     tire_child_builder.spawn(get_tire_material_mesh_bundle());
                 });
 
+            for i in [-1.0, 1.0] {
+                for j in [-1.0, 1.0] {
+                    child_builder.spawn((
+                        Transform::from_xyz(
+                            vehicle_config.length * i,
+                            0.0,
+                            vehicle_config.width * j,
+                        ),
+                        Collider::ball(0.1),
+                        Sensor,
+                        VehicleCornerCollider { is_car },
+                        Name::from(format!("Corner ({}, {})", i, j)),
+                    ));
+                }
+            }
+
             if is_car {
                 child_builder.spawn((
                     TransformBundle::from(
@@ -314,7 +341,13 @@ pub fn spawn_vehicle(
                 ));
             }
         })
-        .id()
+        .id();
+    if is_car {
+        commands.entity(id).insert(Car);
+    } else {
+        commands.entity(id).insert(Trailer);
+    }
+    id
 }
 
 #[derive(Event)]
@@ -396,7 +429,7 @@ fn calculate_tire_distances_to_ground(
             tire_transform.down(),
             parent_config.spring_offset,
             false,
-            QueryFilter::only_fixed(),
+            QueryFilter::default().exclude_sensors(),
         );
         if let Some((_, hit_distance)) = hit {
             tire.distance_to_ground = Some(hit_distance);
